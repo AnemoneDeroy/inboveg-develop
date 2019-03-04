@@ -1,46 +1,63 @@
 ---
-title: "VegetationRelevé"
+title: "Tutorial on how to retrieve data from the INBOVEG database"
 author: "Hans Van Calster & Els De Bie"
-date: "1 maart 2019"
+date: "1 maart 2019 (updated `r Sys.Date()`)"
 output: html_document
 ---
 
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+library(knitr)
+opts_chunk$set(echo = TRUE)
 ```
 
-# packages and connection
+# Packages and connection
 
-nexst packages are needed to run this code
+The following packages are needed to run this code:
+
 * knitr
 * tidyverse
 * DBI
+* odbc
 * glue
 
 Be sure you have reading-rights for CYDONIA
-otherwise place ICTcall (ict.helpdesk@inbo.be)
+otherwise place an ICTcall (ict.helpdesk@inbo.be)
 
 
-```{r, echo=FALSE}
-
+```{r}
 library(knitr)
 library(tidyverse)
 library(DBI)
 library(glue)
-
-con <- dbConnect(odbc::odbc(), dsn = "Cydonia-prd") 
-
 ```
+
+The following R-code can be used to establish a connection to INBOVEG by means of a dsn connection. This assumes that you have set up this dsn in your Windows ODBC manager.
+
+```{r}
+con <- dbConnect(odbc::odbc(), dsn = "Cydonia-prd") 
+```
+
+Alternatively, the following R-code can be used, that only requires that you are working from within the INBO network.
+
+<!-- TO DO change the connection string -->
+
+```{r}
+con <- dbConnect(odbc::odbc(), .connection_string = "Driver=SQL Server;Server=inbo-sql07-prd.inbo.be,1433;Database=D0021_00_userFlora;Trusted_Connection=Yes;")
+```
+
 
 
 # Retrieving data
 
 ## *iv_Survey*:
+
 -gives the list of all surveys in InboVeg
 
 HIER functie maken waar je bv een deel van een survey naam kan ingeven als je gehele naam niet meer kent?
  contains $MILKLIM$
+
+
 
 ## *iv_headerinfo*: 
 
@@ -77,34 +94,8 @@ header_info <- function(Name, RecType) {
 }
 
 ```
+
 Give up survey-name and Recordtype in this function
 
 Headerinfo <- header_info(Name, RecType)
 
-
-
-
-
-
-
-
-
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
-```
-
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
