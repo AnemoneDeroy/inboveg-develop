@@ -26,24 +26,17 @@ otherwise place an ICTcall (ict.helpdesk@inbo.be)
 
 
 ```{r}
-library(knitr)
 library(tidyverse)
 library(DBI)
 library(glue)
 ```
 
-The following R-code can be used to establish a connection to INBOVEG by means of a dsn connection. This assumes that you have set up this dsn in your Windows ODBC manager.
+The following R-code can be used to establish a connection to INBOVEG by means of a connection string:
+
+<!--better to use a connection string than dsn. dsn requires extra steps and settings in windows odbc manager-->
 
 ```{r}
-con <- dbConnect(odbc::odbc(), dsn = "Cydonia-prd") 
-```
-
-Alternatively, the following R-code can be used, that only requires that you are working from within the INBO network.
-
-<!-- TO DO change the connection string -->
-
-```{r}
-con <- dbConnect(odbc::odbc(), .connection_string = "Driver=SQL Server;Server=inbo-sql07-prd.inbo.be,1433;Database=D0021_00_userFlora;Trusted_Connection=Yes;")
+con <- dbConnect(odbc::odbc(), .connection_string = "Driver=SQL Server;Server=inbo-sql07-prd.inbo.be,1433;Database=D0010_00_Cydonia;Trusted_Connection=Yes;")
 ```
 
 
@@ -98,4 +91,12 @@ header_info <- function(Name, RecType) {
 Give up survey-name and Recordtype in this function
 
 Headerinfo <- header_info(Name, RecType)
+
+To close the connection:
+
+```{r}
+dbDisconnect(con)
+
+rm(con)
+```
 
