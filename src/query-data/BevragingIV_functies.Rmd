@@ -90,6 +90,8 @@ header_info <- function(Name, RecType) {
 
 Give up survey-name and Recordtype in this function
 
+nog verder aanwerken 
+
 Headerinfo <- header_info(Name, RecType)
 
 To close the connection:
