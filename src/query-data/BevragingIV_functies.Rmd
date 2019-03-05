@@ -6,9 +6,12 @@ output: html_document
 ---
 
 
-```{r setup, include=FALSE}
+```{r setup }
+
 library(knitr)
+
 opts_chunk$set(echo = TRUE)
+
 ```
 
 # Packages and connection
@@ -25,11 +28,13 @@ Be sure you have reading-rights for CYDONIA
 otherwise place an ICTcall (ict.helpdesk@inbo.be)
 
 
-```{r}
+```{r, eval = FALSE, warning=FALSE}
 library(tidyverse)
 library(DBI)
 library(glue)
 ```
+-- krijg volgende error als ik bovenstaande chunk laat lopen "Error: attempt to use zero-length variable name""
+
 
 The following R-code can be used to establish a connection to INBOVEG by means of a connection string:
 
@@ -38,7 +43,7 @@ The following R-code can be used to establish a connection to INBOVEG by means o
 ```{r}
 con <- dbConnect(odbc::odbc(), .connection_string = "Driver=SQL Server;Server=inbo-sql07-prd.inbo.be,1433;Database=D0010_00_Cydonia;Trusted_Connection=Yes;")
 ```
-
+-- krijg volgende error als ik bovenstaande chunk laat lopen "Error: attempt to use zero-length variable name""
 
 
 # Retrieving data
@@ -46,9 +51,35 @@ con <- dbConnect(odbc::odbc(), .connection_string = "Driver=SQL Server;Server=in
 ## *iv_Survey*:
 
 -gives the list of all surveys in InboVeg
+- define the name of the survey by Survey <- name
+- or define a part of the name of the survey by contains <- part_name
+- or define the owner of the surveys you are looking for by onwner <- name_owner
 
 HIER functie maken waar je bv een deel van een survey naam kan ingeven als je gehele naam niet meer kent?
  contains $MILKLIM$
+ 
+ survey <- "name"
+ string <- "part_name"
+ onwner <- "name_owner"
+ 
+```{r, include = FALSE}
+
+survey_info <- function(Survey, string, owner) {
+  dbGetQuery(con, glue_sql(
+             "SELECT
+             ivS.Id
+            , ivS.Name
+            , ivS.Description
+            , ivS.Owner
+            , ivS.creator
+    FROM [dbo].[ivSurvey] ivS
+    WHERE Name like {survey} 
+    OR string = filter(ivS, contains{string})
+    OR owner like {owner})
+    )
+ }
+
+```
 
 
 
@@ -89,6 +120,8 @@ header_info <- function(Name, RecType) {
 ```
 
 Give up survey-name and Recordtype in this function
+
+nog verder aanwerken 
 
 Headerinfo <- header_info(Name, RecType)
 
