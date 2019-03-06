@@ -8,9 +8,7 @@ output: html_document
 
 ```{r setup }
 
-library(knitr)
 
-opts_chunk$set(echo = TRUE)
 
 ```
 
@@ -28,10 +26,16 @@ Be sure you have reading-rights for CYDONIA
 otherwise place an ICTcall (ict.helpdesk@inbo.be)
 
 
-```{r, eval = FALSE, warning=FALSE}
+```{r setup, eval = FALSE, warning=FALSE}
+
 library(tidyverse)
 library(DBI)
 library(glue)
+library(knitr)
+library(odbc)
+
+opts_chunk$set(echo = TRUE)
+
 ```
 -- krijg volgende error als ik bovenstaande chunk laat lopen "Error: attempt to use zero-length variable name""
 
@@ -51,20 +55,15 @@ con <- dbConnect(odbc::odbc(), .connection_string = "Driver=SQL Server;Server=in
 ## *iv_Survey*:
 
 -gives the list of all surveys in InboVeg
-- define the name of the survey by Survey <- name
-- or define a part of the name of the survey by contains <- part_name
-- or define the owner of the surveys you are looking for by onwner <- name_owner
 
-HIER functie maken waar je bv een deel van een survey naam kan ingeven als je gehele naam niet meer kent?
- contains $MILKLIM$
- 
- survey <- "name"
- string <- "part_name"
- onwner <- "name_owner"
+- define the name of the survey by Survey <- name
+- or define a part of the name of the survey by contains <- part_name (dit later als eerste simpele werkt)
+- or define the owner of the surveys you are looking for, by owner <- name_owner (dit later als eerste simpele werkt)
+
  
 ```{r, include = FALSE}
 
-survey_info <- function(Survey, string, owner) {
+survey_info <- function(survey) {
   dbGetQuery(con, glue_sql(
              "SELECT
              ivS.Id
@@ -73,14 +72,35 @@ survey_info <- function(Survey, string, owner) {
             , ivS.Owner
             , ivS.creator
     FROM [dbo].[ivSurvey] ivS
-    WHERE Name like {survey} 
-    OR string = filter(ivS, contains{string})
-    OR owner like {owner})
-    )
+    WHERE ivS.Name LIKE {survey}", 
+      ivS.Name = survey))
  }
 
 ```
 
+surveyinfo <- survey_info(name of the survey)
+
+Later verder uitbreiden zoals: 
+  survey <- "name"
+  --- string <- "part_name"
+  --- owner <- "name_owner"
+ 
+survey_info <- function(survey, string, owner) {
+  dbGetQuery(con, glue_sql(
+             "SELECT
+             ivS.Id
+            , ivS.Name
+            , ivS.Description
+            , ivS.Owner
+            , ivS.creator
+    FROM [dbo].[ivSurvey] ivS
+    WHERE ivS.Name LIKE {survey}, 
+    OR ivS.Name = filter(ivS, contains{string})
+    OR ivS.owner LIKE {owner}", 
+    ivS.Name = survey, 
+    ivS.Name = filter(contains(string), 
+    ivS.owner = owner))
+ }
 
 
 ## *iv_headerinfo*: 
@@ -113,7 +133,6 @@ header_info <- function(Name, RecType) {
       AND Name = Name,
       RecType = RecType
       
-      
       ;")
 }
 
@@ -121,9 +140,57 @@ header_info <- function(Name, RecType) {
 
 Give up survey-name and Recordtype in this function
 
-nog verder aanwerken 
-
 Headerinfo <- header_info(Name, RecType)
+
+## *iv_Classification*:
+
+- gives the bwk-code or N2000code, recorderd by the observer of the relevé
+- specify the name of the survey you want to use. if none, all the classification records in inboveg will be given
+
+
+ 
+```{r, include = FALSE}
+classification_info <- function(survey) {
+  dbGetQuery(con,
+    "SELECT 
+        ivR.RecordingGivid
+      , ivS.Name as survey
+      , ivRLClas.Classif
+    --, ivRLClas.ClassifResource
+      , ivRLRes_Class.ActionGroup
+      , ivRLRes_Class.ListName
+    --, ftAGL_Class.ListGIVID
+    --, ftBWK.ListGIVID
+      , ftBWK.Description as LocalClassification
+      , ftN2k.Description  as Habitattype
+      , ivRLClas.Cover
+      , ftC.PctValue
+    FROM ivRecording ivR
+INNER JOIN ivSurvey ivS on ivS.Id = ivR.surveyId
+LEFT JOIN [dbo].[ivRLClassification] ivRLClas on ivRLClas.RecordingID = ivR.Id
+LEFT JOIN [dbo].[ivRLResources] ivRLRes_Class on ivRLRes_Class.ResourceGIVID = ivRLClas.ClassifResource
+LEFT JOIN [syno].[Futon_dbo_ftActionGroupList] ftAGL_Class on ftAGL_Class.ActionGroup = ivRLRes_Class.ActionGroup collate Latin1_General_CI_AI
+													AND ftAGL_Class.ListName = ivRLRes_Class.ListName collate Latin1_General_CI_AI
+ --MAAR hoe los ik dit op als er twee type lijsten aanhangen? gevolg van vroeger opdeling in Local en AnnexI classification?
+LEFT JOIN [syno].[Futon_dbo_ftBWKValues] ftBWK on ftBWK.Code = ivRLClas.Classif collate Latin1_General_CI_AI 
+											AND ftBWK.ListGIVID = ftAGL_Class.ListGIVID 
+LEFT JOIN [syno].[Futon_dbo_ftN2kValues] ftN2K on ftN2K.Code = ivRLClas.Classif collate Latin1_General_CI_AI 
+											AND ftN2K.ListGIVID = ftAGL_Class.ListGIVID 
+LEFT JOIN [dbo].[ivRLResources] ivRLR_C on ivRLR_C.ResourceGIVID = ivRLClas.CoverResource
+LEFT JOIN [syno].[Futon_dbo_ftActionGroupList] ftAGL_C on ftAGL_C.ActionGroup = ivRLR_C.ActionGroup collate Latin1_General_CI_AI
+												AND ftAGL_C.ListName = ivRLR_C.ListName collate Latin1_General_CI_AI
+LEFT JOIN [syno].[Futon_dbo_ftCoverValues] ftC on ftC.Code = ivRLClas.Cover collate Latin1_General_CI_AI
+											AND ftAGL_C.ListGIVID = ftC.ListGIVID 
+WHERE ivRLClas.Classif is not NULL 
+")
+
+}
+
+```
+
+
+
+
 
 To close the connection:
 
