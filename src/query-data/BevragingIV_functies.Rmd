@@ -6,12 +6,6 @@ output: html_document
 ---
 
 
-```{r setup }
-
-
-
-```
-
 # Packages and connection
 
 The following packages are needed to run this code:
@@ -23,10 +17,10 @@ The following packages are needed to run this code:
 * glue
 
 Be sure you have reading-rights for CYDONIA
-otherwise place an ICTcall (ict.helpdesk@inbo.be)
+otherwise place an ICT-call (ict.helpdesk@inbo.be)
 
 
-```{r setup, eval = FALSE, warning=FALSE}
+```{r}
 
 library(tidyverse)
 library(DBI)
@@ -37,70 +31,52 @@ library(odbc)
 opts_chunk$set(echo = TRUE)
 
 ```
--- krijg volgende error als ik bovenstaande chunk laat lopen "Error: attempt to use zero-length variable name""
-
-
 The following R-code can be used to establish a connection to INBOVEG by means of a connection string:
 
 <!--better to use a connection string than dsn. dsn requires extra steps and settings in windows odbc manager-->
 
-```{r}
+```{r, eval = FALSE}
 con <- dbConnect(odbc::odbc(), .connection_string = "Driver=SQL Server;Server=inbo-sql07-prd.inbo.be,1433;Database=D0010_00_Cydonia;Trusted_Connection=Yes;")
 ```
--- krijg volgende error als ik bovenstaande chunk laat lopen "Error: attempt to use zero-length variable name""
 
 
 # Retrieving data
 
 ## *iv_Survey*:
 
--gives the list of all surveys in InboVeg
+gives the list of all surveys in InboVeg
 
-- define the name of the survey by Survey <- name
+- define the name of the survey by survey <- name
 - or define a part of the name of the survey by contains <- part_name (dit later als eerste simpele werkt)
 - or define the owner of the surveys you are looking for, by owner <- name_owner (dit later als eerste simpele werkt)
 
- 
-```{r, include = FALSE}
+survey <- input_name_survey
+part_survey <- part_of_the_surveyname
+owner <- owner_of_the_Survey
 
-survey_info <- function(survey) {
+```{r}
+
+survey_info <- function(survey, .con) {
   dbGetQuery(con, glue_sql(
-             "SELECT
-             ivS.Id
-            , ivS.Name
-            , ivS.Description
-            , ivS.Owner
-            , ivS.creator
+    "SELECT
+    ivS.Id
+    , ivS.Name
+    , ivS.Description
+    , ivS.Owner
+    , ivS.creator
     FROM [dbo].[ivSurvey] ivS
     WHERE ivS.Name LIKE {survey}", 
-      ivS.Name = survey))
- }
+    ivS.Name = survey,
+    .con = con ))
+}
 
 ```
 
-surveyinfo <- survey_info(name of the survey)
-
-Later verder uitbreiden zoals: 
-  survey <- "name"
-  --- string <- "part_name"
-  --- owner <- "name_owner"
- 
-survey_info <- function(survey, string, owner) {
-  dbGetQuery(con, glue_sql(
-             "SELECT
-             ivS.Id
-            , ivS.Name
-            , ivS.Description
-            , ivS.Owner
-            , ivS.creator
-    FROM [dbo].[ivSurvey] ivS
-    WHERE ivS.Name LIKE {survey}, 
-    OR ivS.Name = filter(ivS, contains{string})
-    OR ivS.owner LIKE {owner}", 
-    ivS.Name = survey, 
-    ivS.Name = filter(contains(string), 
-    ivS.owner = owner))
- }
+survey <- "OudeLanden_1979"
+SurveyInfo <- survey_info(survey, con)
+SurveyInfo
+Test <- survey_info("OudeLanden_1979", con)
+Test
 
 
 ## *iv_headerinfo*: 
@@ -109,12 +85,14 @@ survey_info <- function(survey, string, owner) {
 - specify two parameters for the function:
     - RecType = c('Classic', 'Classic-emmer', 'Classic-ketting', 'BioHab', 'ABS')
     - SurveyName = to get the list, run the code under "## iv_survey
-    
+
+RecType <- "Classic"
+SurveyName <- "input_name_survey"
     
 ```{r, include=FALSE}
 
-header_info <- function(Name, RecType) {
-  dbGetQuery(con,
+header_info <- function(SurveyName, RecType, .con) {
+  dbGetQuery(con, glue_sql(
     "SELECT 
       ivR.[RecordingGivid]
       , ivS.Name
@@ -126,75 +104,149 @@ header_info <- function(Name, RecType) {
       , ivR.Length
       , ivR.Width
       , ivR.SurveyId
+      , ivR.RecTypeID
       , coalesce(area, convert( nvarchar(20),ivR.Length * ivR.Width)) as B
       FROM [dbo].[ivRecording] ivR
       INNER JOIN [dbo].[ivSurvey] ivS on ivS.Id = ivR.SurveyId
+      INNER JOIN [dbo].[ivRecTypeD] ivRec on ivRec.ID = ivR.RecTypeID 
       where ivR.NeedsWork = 0
-      AND Name = Name,
-      RecType = RecType
-      
-      ;")
+      AND ivS.Name LIKE {SurveyName}
+      AND ivREc.Name LIKE {RecType}", 
+    ivS.Name = SurveyName,
+    ivRec.Name = RecType,
+    .con = con))
 }
+
 
 ```
 
 Give up survey-name and Recordtype in this function
 
-Headerinfo <- header_info(Name, RecType)
+Headerinfo <- header_info(SurveyName, RecType, con)
+Als voorbeeld
+  Headerinfo <- header_info("OudeLanden_1979", "Classic", con)
+
 
 ## *iv_Classification*:
 
 - gives the bwk-code or N2000code, recorderd by the observer of the relevé
 - specify the name of the survey you want to use. if none, all the classification records in inboveg will be given
+- specify the bwk-code or N2000 code to retrieve all relevés indicated as this code
 
+SurveyName <- "input_name_survey"
+BWK <- "bwkcode"
+N2000 <- "N2000code"
 
  
 ```{r, include = FALSE}
-classification_info <- function(survey) {
-  dbGetQuery(con,
+classification_info <- function(SurveyName, BWK, N2000, .con) {
+  dbGetQuery(con, glue_sql(
     "SELECT 
-        ivR.RecordingGivid
-      , ivS.Name as survey
-      , ivRLClas.Classif
+    ivR.RecordingGivid
+    , ivS.Name as survey
+    , ivRLClas.Classif
     --, ivRLClas.ClassifResource
-      , ivRLRes_Class.ActionGroup
-      , ivRLRes_Class.ListName
+    , ivRLRes_Class.ActionGroup
+    , ivRLRes_Class.ListName
     --, ftAGL_Class.ListGIVID
     --, ftBWK.ListGIVID
-      , ftBWK.Description as LocalClassification
-      , ftN2k.Description  as Habitattype
-      , ivRLClas.Cover
-      , ftC.PctValue
+    , ftBWK.Description as LocalClassification
+    , ftN2k.Description  as Habitattype
+    , ivRLClas.Cover
+    , ftC.PctValue
     FROM ivRecording ivR
-INNER JOIN ivSurvey ivS on ivS.Id = ivR.surveyId
-LEFT JOIN [dbo].[ivRLClassification] ivRLClas on ivRLClas.RecordingID = ivR.Id
-LEFT JOIN [dbo].[ivRLResources] ivRLRes_Class on ivRLRes_Class.ResourceGIVID = ivRLClas.ClassifResource
-LEFT JOIN [syno].[Futon_dbo_ftActionGroupList] ftAGL_Class on ftAGL_Class.ActionGroup = ivRLRes_Class.ActionGroup collate Latin1_General_CI_AI
-													AND ftAGL_Class.ListName = ivRLRes_Class.ListName collate Latin1_General_CI_AI
- --MAAR hoe los ik dit op als er twee type lijsten aanhangen? gevolg van vroeger opdeling in Local en AnnexI classification?
-LEFT JOIN [syno].[Futon_dbo_ftBWKValues] ftBWK on ftBWK.Code = ivRLClas.Classif collate Latin1_General_CI_AI 
-											AND ftBWK.ListGIVID = ftAGL_Class.ListGIVID 
-LEFT JOIN [syno].[Futon_dbo_ftN2kValues] ftN2K on ftN2K.Code = ivRLClas.Classif collate Latin1_General_CI_AI 
-											AND ftN2K.ListGIVID = ftAGL_Class.ListGIVID 
-LEFT JOIN [dbo].[ivRLResources] ivRLR_C on ivRLR_C.ResourceGIVID = ivRLClas.CoverResource
-LEFT JOIN [syno].[Futon_dbo_ftActionGroupList] ftAGL_C on ftAGL_C.ActionGroup = ivRLR_C.ActionGroup collate Latin1_General_CI_AI
-												AND ftAGL_C.ListName = ivRLR_C.ListName collate Latin1_General_CI_AI
-LEFT JOIN [syno].[Futon_dbo_ftCoverValues] ftC on ftC.Code = ivRLClas.Cover collate Latin1_General_CI_AI
-											AND ftAGL_C.ListGIVID = ftC.ListGIVID 
-WHERE ivRLClas.Classif is not NULL 
-")
-
+    INNER JOIN ivSurvey ivS on ivS.Id = ivR.surveyId
+    LEFT JOIN [dbo].[ivRLClassification] ivRLClas on ivRLClas.RecordingID = ivR.Id
+    LEFT JOIN [dbo].[ivRLResources] ivRLRes_Class on ivRLRes_Class.ResourceGIVID = ivRLClas.ClassifResource
+    LEFT JOIN [syno].[Futon_dbo_ftActionGroupList] ftAGL_Class on ftAGL_Class.ActionGroup = ivRLRes_Class.ActionGroup collate Latin1_General_CI_AI
+    AND ftAGL_Class.ListName = ivRLRes_Class.ListName collate Latin1_General_CI_AI
+    --MAAR hoe los ik dit op als er twee type lijsten aanhangen? gevolg van vroeger opdeling in Local en AnnexI classification?
+    LEFT JOIN [syno].[Futon_dbo_ftBWKValues] ftBWK on ftBWK.Code = ivRLClas.Classif collate Latin1_General_CI_AI 
+    AND ftBWK.ListGIVID = ftAGL_Class.ListGIVID 
+    LEFT JOIN [syno].[Futon_dbo_ftN2kValues] ftN2K on ftN2K.Code = ivRLClas.Classif collate Latin1_General_CI_AI 
+    AND ftN2K.ListGIVID = ftAGL_Class.ListGIVID 
+    LEFT JOIN [dbo].[ivRLResources] ivRLR_C on ivRLR_C.ResourceGIVID = ivRLClas.CoverResource
+    LEFT JOIN [syno].[Futon_dbo_ftActionGroupList] ftAGL_C on ftAGL_C.ActionGroup = ivRLR_C.ActionGroup collate Latin1_General_CI_AI
+    AND ftAGL_C.ListName = ivRLR_C.ListName collate Latin1_General_CI_AI
+    LEFT JOIN [syno].[Futon_dbo_ftCoverValues] ftC on ftC.Code = ivRLClas.Cover collate Latin1_General_CI_AI
+    AND ftAGL_C.ListGIVID = ftC.ListGIVID 
+    WHERE ivRLClas.Classif is not NULL 
+    AND ivS.Name LIKE {SurveyName}
+    OR ivRLClas.Classif LIKE {BWK}
+    OR ivRLClas.Classif LIKE {N2000}",
+           ivS.Name = SurveyName,
+           ivRLClas.Classif = BWK, 
+           ivRLClas.Classif = N2000, 
+           .con = con))
 }
 
 ```
 
+Classifiction <- classification_info("OudeLanden_1979", "BWK", "N2000", con)
+werkt nog niet, geeft lege rij. hoe omgaan met de 'or' ... of surveyname of bwkcode of n2K code....? 
 
+Ophalen vegetatieopnames
 
+```{r, include = FALSE}
 
+Vegetation_info <- function(SurveyName, .con) {
+   dbGetQuery(con, glue_sql(
+            "SELECT 
+            ivR.[RecordingGivid]
+        	, ivRL_Layer.LayerCode
+        	, ivRL_Layer.CoverCode
+        	, ivRL_Iden.TaxonFullText as OrignalName
+        	, Synoniem.ScientificName
+        	, ivRL_Iden.PhenologyCode
+        	, ivRL_Taxon.CoverageCode
+        	, ftCover.PctValue
+        	, ftAGL.Description as RecordingScale
+        FROM [dbo].[ivRecording] ivR 
+  -- Deel met soortenlijst en synoniem
+        INNER JOIN [dbo].[ivRLLayer] ivRL_Layer on ivRL_Layer.RecordingID = ivR.Id
+        INNER JOIN [dbo].[ivRLTaxonOccurrence] ivRL_Taxon on ivRL_Taxon.LayerID = ivRL_Layer.ID
+        INNER JOIN [dbo].[ivRLIdentification] ivRL_Iden on ivRL_Iden.OccurrenceID = ivRL_Taxon.ID
+        LEFT JOIN (SELECT ftTaxon.TaxonName AS TaxonFullText
+        			 , COALESCE([GetSyn].TaxonName, ftTaxon.TaxonName) AS ScientificName
+        			 , COALESCE([GetSyn].TaxonGIVID, ftTaxon.TaxonGIVID) AS TAXON_LIST_ITEM_KEY
+        			 , COALESCE([GetSyn].TaxonQuickCode, ftTaxon.TaxonQuickCode) AS QuickCode
+        		  FROM [syno].[Futon_dbo_ftTaxon] ftTaxon
+        		  INNER JOIN [syno].[Futon_dbo_ftTaxonListItem] ftTLI ON ftTLI.TaxonGIVID = ftTaxon.TaxonGIVID 
+        	      LEFT JOIN (SELECT ftTaxonLI.TaxonListItemGIVID
+        						, ftTaxon.TaxonGIVID
+        						, ftTaxon.TaxonName
+        						, ftTaxon.TaxonQuickCode
+        						, ftAGL.ListName
+        						, ftTaxonLI.PreferedListItemGIVID
+        					FROM [syno].[Futon_dbo_ftActionGroupList] ftAGL 
+        					INNER JOIN [syno].[Futon_dbo_ftTaxonListItem] ftTaxonLI ON ftTaxonLI.TaxonListGIVID = ftAGL.ListGIVID 
+        					LEFT JOIN [syno].[Futon_dbo_ftTaxon] ftTaxon ON ftTaxon.TaxonGIVID = ftTaxonLI.TaxonGIVID 
+        					WHERE 1=1
+        					AND ftAGL.ListName = 'INBO-2011 Sci'	
+        					) GetSyn ON GetSyn.TaxonListItemGIVID = ftTLI.PreferedListItemGIVID
+        		WHERE ftTLI.TaxonListGIVID = 'TL2011092815101010'
+        		) Synoniem on ivRL_Iden.TaxonFullText = Synoniem.TaxonFullText collate Latin1_General_CI_AI
+        		--ORDER BY ivR.RecordingGIVID
+  --Hier begint deel met bedekking
+        LEFT JOIN [dbo].[ivRLResources] ivRL_Res on ivRL_Res.ResourceGIVID = ivRL_Taxon.CoverageResource
+        LEFT JOIN [syno].[Futon_dbo_ftActionGroupList] ftAGL on ftAGL.ActionGroup = ivRL_Res.ActionGroup collate Latin1_General_CI_AI
+        		AND ftAGL.ListName = ivRL_Res.ListName collate Latin1_General_CI_AI
+        LEFT JOIN [syno].[Futon_dbo_ftCoverValues] ftCover on ftCover.ListGIVID = ftAGL.ListGIVID
+        		AND ivRL_Taxon.CoverageCode = ftCover.Code collate Latin1_General_CI_AI
+        WHERE ivR.NeedsWork = 0
+            AND ivRL_Iden.Preferred = 1
+            AND ivS.Name LIKE {SurveyName}", 
+               ivS.Name = SurveyName,
+               .con = con ))
+}
+
+```
+
+Vegetatieopname werkt nog niet, hoe omgaan met 2de databank bevragen. hier zoals in Ssms (syno) gewerkt, de tabellen zijn toegevoegd door joL aan Cydonia conncetie via die Syno....
 
 To close the connection:
 
-```{r}
+```{r, eval = FALSE}
 dbDisconnect(con)
 
 rm(con)
