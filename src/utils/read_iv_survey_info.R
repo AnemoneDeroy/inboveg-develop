@@ -37,6 +37,5 @@ read_iv_survey_info <- function(survey, .con) {
     , ivS.creator
     FROM [dbo].[ivSurvey] ivS
     WHERE ivS.Name LIKE {survey}",
-    ivS.Name = survey,
     .con = con ))
 }
