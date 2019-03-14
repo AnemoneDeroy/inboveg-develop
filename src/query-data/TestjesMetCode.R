@@ -50,11 +50,15 @@ survey_info <- function(survey, owner, .con) {
     , ivS.Owner
     , ivS.creator
     FROM [dbo].[ivSurvey] ivS
-    WHERE (if (survey is not null)
-    , ivS.Name LIKE {survey}
-    , else (if (owner is not null)
-    ,ivs.Owner LIKE {owner}
-    ,else print ('sorry no valid answer'))",
+    WHERE (
+        if (survey is not null)
+            , ivS.Name LIKE {survey}
+        , else (
+      if (owner is not null)
+            ,ivs.Owner LIKE {owner}
+        ,else print ('sorry no valid answer')
+    
+  )",
     ivS.Name = survey,
     ivS.owner = owner,
     .con = con ))
