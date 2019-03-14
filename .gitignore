@@ -39,3 +39,7 @@ rsconnect/
 inboveg-develop.Rproj
 
 /temp/
+
+
+# output files
+*.html
