@@ -14,7 +14,6 @@ con <- dbConnect(odbc::odbc(), .connection_string = "Driver=SQL Server;Server=in
 Test <- read_iv_survey_info(survey = "OudeLanden_1979", .con = con)
 Alles <- read_iv_survey_info(survey = "%", .con = con)
 
-
 survey_info <- function(survey, .con) {
   dbGetQuery(con, glue_sql(
     "SELECT
@@ -29,8 +28,14 @@ survey_info <- function(survey, .con) {
     .con = con ))
 }
 
-Test <- survey_info("OudeLanden_1979", con)
-Test
+# als je slechts deel weet van de naam van Survey
+Deel <- Alles %>%
+  select(Name, Description) %>%
+  filter(str_detect(tolower(Name), pattern = "torf"))
+# dit in functie kappen
+
+
+
 
 # Nu via definieren van de parameters
 survey <- "OudeLanden_1979"
@@ -64,7 +69,7 @@ survey_info <- function(survey, owner, .con) {
       if (owner is not null)
             ,ivs.Owner LIKE {owner}
         ,else print ('sorry no valid answer')
-    
+
   )",
     ivS.Name = survey,
     ivS.owner = owner,
