@@ -46,17 +46,11 @@ con <- dbConnect(odbc::odbc(), .connection_string = "Driver=SQL Server;Server=in
 
 gives the list of all surveys in InboVeg
 
-- define the name of the survey by survey <- name
-- or define a part of the name of the survey by contains <- part_name (dit later als eerste simpele werkt)
-- or define the owner of the surveys you are looking for, by owner <- name_owner (dit later als eerste simpele werkt)
-
-survey <- input_name_survey
-part_survey <- part_of_the_surveyname
-owner <- owner_of_the_Survey
+- define the name of the survey by survey <- "name"
 
 ```{r}
 
-survey_info <- function(survey, .con) {
+survey_info <- function(survey, con) {
   dbGetQuery(con, glue_sql(
     "SELECT
     ivS.Id
@@ -72,11 +66,17 @@ survey_info <- function(survey, .con) {
 
 ```
 
-survey <- "OudeLanden_1979"
-SurveyInfo <- survey_info(survey, con)
-SurveyInfo
-Test <- survey_info("OudeLanden_1979", con)
-Test
+Example
+  survey <- "OudeLanden_1979"
+  SurveyInfo <- survey_info(survey, con)
+  SurveyInfo
+  
+The whole list of surveys is given by  
+AllSurveys <- survey_info(survey = "%", .con = con)
+
+Only a part of the survey name is known? Or all the surveys of "MILKLIM" for example want to be given
+Part <-"torf"
+PartSurvey <- survey_info(survey = (str_detect(tolower(Name), "PART"))) ## dit werkt dus nog niet!!
 
 
 ## *iv_headerinfo*: 
@@ -89,7 +89,7 @@ Test
 RecType <- "Classic"
 SurveyName <- "input_name_survey"
     
-```{r, include=FALSE}
+```{r}
 
 header_info <- function(SurveyName, RecType, .con) {
   dbGetQuery(con, glue_sql(
@@ -123,23 +123,22 @@ header_info <- function(SurveyName, RecType, .con) {
 Give up survey-name and Recordtype in this function
 
 Headerinfo <- header_info(SurveyName, RecType, con)
-Als voorbeeld
+Example
   Headerinfo <- header_info("OudeLanden_1979", "Classic", con)
 
 
-## *iv_Classification*:
+## *iv_Classification_N2000*:
 
-- gives the bwk-code or N2000code, recorderd by the observer of the relevé
+- gives the N2000code, recorderd by the observer of the relevé
 - specify the name of the survey you want to use. if none, all the classification records in inboveg will be given
-- specify the bwk-code or N2000 code to retrieve all relevés indicated as this code
+- specify the N2000 code to retrieve all relevés indicated as this code
 
 SurveyName <- "input_name_survey"
-BWK <- "bwkcode"
 N2000 <- "N2000code"
 
  
-```{r, include = FALSE}
-classification_info <- function(SurveyName, BWK, N2000, .con) {
+```{r}
+classification_info <- function(SurveyName, N2000, .con) {
   dbGetQuery(con, glue_sql(
     "SELECT 
     ivR.RecordingGivid
@@ -172,20 +171,70 @@ classification_info <- function(SurveyName, BWK, N2000, .con) {
     AND ftAGL_C.ListGIVID = ftC.ListGIVID 
     WHERE ivRLClas.Classif is not NULL 
     AND ivS.Name LIKE {SurveyName}
-    OR ivRLClas.Classif LIKE {BWK}
-    OR ivRLClas.Classif LIKE {N2000}",
+    AND ivRLClas.Classif LIKE {N2000}",
            ivS.Name = SurveyName,
-           ivRLClas.Classif = BWK, 
            ivRLClas.Classif = N2000, 
            .con = con))
 }
 
 ```
 
-Classifiction <- classification_info("OudeLanden_1979", "BWK", "N2000", con)
-werkt nog niet, geeft lege rij. hoe omgaan met de 'or' ... of surveyname of bwkcode of n2K code....? 
+Classifiction <- classification_info("OudeLanden_1979", "N2000", con)
 
-Ophalen vegetatieopnames
+## iv_Classification_BWK
+
+- gives the BWK-code, recorderd by the observer of the relevé
+- specify the name of the survey you want to use. if none, all the classification records in inboveg will be given
+- specify the bwk-code to retrieve all relevés indicated as this code
+
+SurveyName <- "input_name_survey"
+BWK <- "bwkcode"
+
+ 
+```{r}
+classification_info <- function(SurveyName, BWK, .con) {
+  dbGetQuery(con, glue_sql(
+    "SELECT 
+    ivR.RecordingGivid
+    , ivS.Name as survey
+    , ivRLClas.Classif
+    , ivRLRes_Class.ActionGroup
+    , ivRLRes_Class.ListName
+    , ftBWK.Description as LocalClassification
+    , ftN2k.Description  as Habitattype
+    , ivRLClas.Cover
+    , ftC.PctValue
+    FROM ivRecording ivR
+    INNER JOIN ivSurvey ivS on ivS.Id = ivR.surveyId
+    LEFT JOIN [dbo].[ivRLClassification] ivRLClas on ivRLClas.RecordingID = ivR.Id
+    LEFT JOIN [dbo].[ivRLResources] ivRLRes_Class on ivRLRes_Class.ResourceGIVID = ivRLClas.ClassifResource
+    LEFT JOIN [syno].[Futon_dbo_ftActionGroupList] ftAGL_Class on ftAGL_Class.ActionGroup = ivRLRes_Class.ActionGroup collate Latin1_General_CI_AI
+    AND ftAGL_Class.ListName = ivRLRes_Class.ListName collate Latin1_General_CI_AI
+    --MAAR hoe los ik dit op als er twee type lijsten aanhangen? gevolg van vroeger opdeling in Local en AnnexI classification?
+    LEFT JOIN [syno].[Futon_dbo_ftBWKValues] ftBWK on ftBWK.Code = ivRLClas.Classif collate Latin1_General_CI_AI 
+    AND ftBWK.ListGIVID = ftAGL_Class.ListGIVID 
+    LEFT JOIN [syno].[Futon_dbo_ftN2kValues] ftN2K on ftN2K.Code = ivRLClas.Classif collate Latin1_General_CI_AI 
+    AND ftN2K.ListGIVID = ftAGL_Class.ListGIVID 
+    LEFT JOIN [dbo].[ivRLResources] ivRLR_C on ivRLR_C.ResourceGIVID = ivRLClas.CoverResource
+    LEFT JOIN [syno].[Futon_dbo_ftActionGroupList] ftAGL_C on ftAGL_C.ActionGroup = ivRLR_C.ActionGroup collate Latin1_General_CI_AI
+    AND ftAGL_C.ListName = ivRLR_C.ListName collate Latin1_General_CI_AI
+    LEFT JOIN [syno].[Futon_dbo_ftCoverValues] ftC on ftC.Code = ivRLClas.Cover collate Latin1_General_CI_AI
+    AND ftAGL_C.ListGIVID = ftC.ListGIVID 
+    WHERE ivRLClas.Classif is not NULL 
+    AND ivS.Name LIKE {SurveyName}
+    AND ivRLClas.Classif LIKE {BWK}",
+           ivS.Name = SurveyName,
+           ivRLClas.Classif = BWK, 
+           .con = con))
+}
+
+```
+
+Classifiction <- classification_info("OudeLanden_1979", "BWK", con)
+
+## iv_Relevés
+
+Getting the relevés of one Survey
 
 ```{r, include = FALSE}
 

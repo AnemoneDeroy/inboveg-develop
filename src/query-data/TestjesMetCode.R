@@ -5,8 +5,8 @@ library(knitr)
 library(odbc)
 library(assertthat)
 
-source("../utils/read_iv_survey_info.R")
-
+source("./src/utils/read_iv_survey_info.R")
+## putty maken en thuis vpn opzetten
 con <- dbConnect(odbc::odbc(), .connection_string = "Driver=SQL Server;Server=inbo-sql07-prd.inbo.be,1433;Database=D0010_00_Cydonia;Trusted_Connection=Yes;")
 
 ### Testen Survey information ###
@@ -29,12 +29,32 @@ survey_info <- function(survey, .con) {
 }
 
 # als je slechts deel weet van de naam van Survey
-Deel <- Alles %>%
+Deel_qry <- Alles %>%
   select(Name, Description) %>%
   filter(str_detect(tolower(Name), pattern = "torf"))
 # dit in functie kappen
 
+Part_of_SurveyName <- function(con, part) {
+  Deel_qry <-
+    past0(Alles %>%
+    select(Name, Description) %>%
+    filter(str_detect(tolower(Name), pattern = "part")))
+  DBI::dbGetQuery(con, Deel_qry)
 
+}
+
+
+## voorbeeld 
+survey <- "OudeLanden_1979"
+SurveyInfo <- survey_info(survey, con)
+SurveyInfo
+
+## wil je ganse lijst van surveys:  
+  AlleSurveys <- survey_info(survey = "%", .con = con)
+
+## Weet je slechts een part van de naam, voorbeeld enkel 'torf':
+Deel <-'torf'
+DeelSurvey <- survey_info(is.character(survey = (str_detect(tolower(Name), "torf"))))
 
 
 # Nu via definieren van de parameters
@@ -79,6 +99,8 @@ survey_info <- function(survey, owner, .con) {
 Test3 <- survey_info(survey, owner, con)
 Test3
 
+
+
 ## testen headerinfo
 
 header_info <- function(Name, RecType, .con) {
@@ -110,13 +132,21 @@ header_info <- function(Name, RecType, .con) {
 Headerinfo <- header_info("OudeLanden_1979", "Classic", con)
 Headerinfo
 
+
+Name <- "OudeLanden_1979"
+RecType <- "Classic"
+Headerinfo <- read_iv_header_info_edb(Name, RecType, con)
+dbDisconnect(con)
+rm(con)
+
+
+
 ## testen classification
 
-SurveyName <- "OudeLanden_1979"
-BWK <- "bwkcode"
-N2000 <- "N2000code"
+SurveyName <- "MILKLIM_Heischraal2012"
+N2000 <- "4010"
 
-classification_info <- function(SurveyName, BWK, N2000, .con) {
+classification_info <- function(SurveyName, N2000, .con) {
   dbGetQuery(con, glue_sql(
     "SELECT
     ivR.RecordingGivid
@@ -149,15 +179,13 @@ classification_info <- function(SurveyName, BWK, N2000, .con) {
     AND ftAGL_C.ListGIVID = ftC.ListGIVID
     WHERE ivRLClas.Classif is not NULL
     AND ivS.Name LIKE {SurveyName}
-    OR ivRLClas.Classif LIKE {BWK}
-    OR ivRLClas.Classif LIKE {N2000}",
+        AND ivRLClas.Classif LIKE {N2000}",
            ivS.Name = SurveyName,
-           ivRLClas.Classif = BWK,
            ivRLClas.Classif = N2000,
            .con = con))
 }
 
-Classifiction <- classification_info("OudeLanden_1979", "BWK", "N2000", con)
+Classifiction <- classification_info("MILKLIM_Heischraal2012", "4010", con)
 
 
 ## vegetatieopnames testen
@@ -212,4 +240,4 @@ Vegetation_info <- function(SurveyName, .con) {
                .con = con ))
 }
 
-Vegetation_info("OudeLanden_1979", con)
+OudeLanden <- Vegetation_info("OudeLanden_1979", con)
