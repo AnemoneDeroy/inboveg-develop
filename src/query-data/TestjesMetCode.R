@@ -6,7 +6,7 @@ library(odbc)
 library(assertthat)
 
 source("./src/utils/read_iv_survey_info.R")
-## putty maken en thuis vpn opzetten
+## thuis putty maken en vpn opzetten
 con <- dbConnect(odbc::odbc(), .connection_string = "Driver=SQL Server;Server=inbo-sql07-prd.inbo.be,1433;Database=D0010_00_Cydonia;Trusted_Connection=Yes;")
 
 ### Testen Survey information ###
@@ -56,6 +56,28 @@ SurveyInfo
 Deel <-'torf'
 DeelSurvey <- survey_info(is.character(survey = (str_detect(tolower(Name), "torf"))))
 
+
+##### PRUTSJES met dplyr
+
+tbl_survey <- tbl(con, from = "ivSurvey")
+class(survey)
+
+tbl_survey$ops$vars 
+
+survey_info <- function(survey, con) {
+  tbl_survey %>%
+    select(Id, Name, Description, Owner, Creator) %>% 
+    filter(survey %LIKE% (str_c("%", survey, "%"))) %>% 
+    pull()
+  
+}
+
+##
+Survey <- tbl(con, from = "ivSurvey")
+
+Survey %>% 
+  select(Name) %>% 
+  filter(Name = "OudeLanden_1979" )
 
 # Nu via definieren van de parameters
 survey <- "OudeLanden_1979"
