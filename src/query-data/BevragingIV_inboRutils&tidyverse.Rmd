@@ -1,10 +1,10 @@
 ---
-title: "Tutorial on how to retrieve data from the INBOVEG database"
+title: "BevragingIV_inboRutils&tidyverse"
 author: "Hans Van Calster & Els De Bie"
-date: "1 maart 2019 (updated `r Sys.Date()`)"
+date: "18 juni 2019"
 output: html_document
 ---
-
+## omzetten van sql naar dplyr - poging 
 
 # Packages and connection
 
@@ -12,21 +12,16 @@ The following packages are needed to run this code:
 
 * knitr
 * tidyverse
-* DBI
-* odbc
-* glue
+* inborutils (dit als connectie ipv DBI en odbc)
 
 Be sure you have reading-rights for CYDONIA
 otherwise place an ICT-call (ict.helpdesk@inbo.be)
 
-
 ```{r}
 
-library(tidyverse)
-library(DBI)
-library(glue)
 library(knitr)
-library(odbc)
+library(tidyverse)
+library(inborutils)
 
 opts_chunk$set(echo = TRUE)
 
@@ -36,7 +31,7 @@ The following R-code can be used to establish a connection to INBOVEG by means o
 <!--better to use a connection string than dsn. dsn requires extra steps and settings in windows odbc manager-->
 
 ```{r, eval = FALSE}
-con <- dbConnect(odbc::odbc(), .connection_string = "Driver=SQL Server;Server=inbo-sql07-prd.inbo.be,1433;Database=D0010_00_Cydonia;Trusted_Connection=Yes;")
+con <- connect_inbo_dbase(database_name = "D0010_00_Cydonia")
 ```
 
 
@@ -49,27 +44,31 @@ gives the list of all surveys in InboVeg
 - define the name of the survey by survey <- "name"
 
 ```{r}
+Survey <- tbl(con, from = "ivSurvey")
 
-survey_info <- function(survey, con) {
-  dbGetQuery(con, glue_sql(
-    "SELECT
-    ivS.Id
-    , ivS.Name
-    , ivS.Description
-    , ivS.Owner
-    , ivS.creator
-    FROM [dbo].[ivSurvey] ivS
-    WHERE ivS.Name LIKE {survey}", 
-    ivS.Name = survey,
-    .con = con ))
+Survey %>% 
+  select(Name) %>% 
+  filter(Name = "Aardbeivlinder_Drongengoed")
+
+survey <- tbl(con, from = "ivSurvey")
+
+survey_info <- function(table, survey) {
+ table %>%
+    select(Id, Name, Description, Owner, Creator) %>% 
+     filter(Name  %LIKE% paste0("%", survey, "%"))
+    
 }
 
 ```
-
 Example
-  survey <- "OudeLanden_1979"
-  SurveyInfo <- survey_info(survey, con)
-  SurveyInfo
+
+SurveyInfo <-  survey %>% 
+    survey_info("OudeLanden_1979")
+SurveyInfo
+
+  
+  
+  
   
 The whole list of surveys is given by  
 AllSurveys <- survey_info(survey = "%", .con = con)
@@ -300,4 +299,5 @@ dbDisconnect(con)
 
 rm(con)
 ```
+
 
