@@ -5,6 +5,7 @@ library(knitr)
 library(odbc)
 library(assertthat)
 
+
 source("./src/utils/read_iv_survey_info.R")
 ## thuis putty maken en vpn opzetten
 con <- dbConnect(odbc::odbc(), .connection_string = "Driver=SQL Server;Server=inbo-sql07-prd.inbo.be,1433;Database=D0010_00_Cydonia;Trusted_Connection=Yes;")
@@ -28,6 +29,16 @@ survey_info <- function(survey, .con) {
     .con = con ))
 }
 
+## voorbeeld 
+survey <- "OudeLanden_1979"
+SurveyInfo <- survey_info(survey, con)
+SurveyInfo
+
+## wil je ganse lijst van surveys:  
+AlleSurveys <- survey_info(survey = "%", .con = con)
+
+###############
+
 # als je slechts deel weet van de naam van Survey
 Deel_qry <- Alles %>%
   select(Name, Description) %>%
@@ -43,24 +54,20 @@ Part_of_SurveyName <- function(con, part) {
 
 }
 
+part <- 'torf'
+torf <-  Part_of_SurveyName(con, part)
+## FOUTMELDING 
+#Error in past0(Alles %>% select(Name, Description) %>% filter(str_detect(tolower(Name),  : could not find function "past0"
 
-## voorbeeld 
-survey <- "OudeLanden_1979"
-SurveyInfo <- survey_info(survey, con)
-SurveyInfo
-
-## wil je ganse lijst van surveys:  
-  AlleSurveys <- survey_info(survey = "%", .con = con)
 
 ## Weet je slechts een part van de naam, voorbeeld enkel 'torf':
 Deel <-'torf'
-DeelSurvey <- survey_info(is.character(survey = (str_detect(tolower(Name), "torf"))))
-
+DeelSurvey <- survey_info(is.character(survey = (str_detect(tolower(Name), "torf"))), con)
+## werkt niet
 
 ##### PRUTSJES met dplyr
-
 tbl_survey <- tbl(con, from = "ivSurvey")
-class(survey)
+class(tbl_survey)
 
 tbl_survey$ops$vars 
 
@@ -76,8 +83,33 @@ survey_info <- function(survey, con) {
 Survey <- tbl(con, from = "ivSurvey")
 
 Survey %>% 
-  select(Name) %>% 
+  select("Name") %>% 
   filter(Name = "OudeLanden_1979" )
+
+
+## Only a part of the survey name is known? Or all the surveys of "MILKLIM" for example want to be given
+
+survey_info <- function(survey, con) {
+  dbGetQuery(con, glue_sql(
+    "SELECT
+    ivS.Id
+    , ivS.Name
+    , ivS.Description
+    , ivS.Owner
+    , ivS.creator
+    FROM [dbo].[ivSurvey] ivS
+    WHERE ivS.Name LIKE {survey}", 
+    ivS.Name = survey,
+    .con = con ))
+}
+
+
+Part <-"torf"
+PartSurvey <- survey_info(survey = (str_detect(tolower(Name), "PART"))) ## dit werkt dus nog niet!!
+survey_info(table = survey, survey = Part) #should work?
+
+
+PartSurveys <- survey_info(survey = "%MILKLIM%", con)
 
 # Nu via definieren van de parameters
 survey <- "OudeLanden_1979"
@@ -207,59 +239,62 @@ classification_info <- function(SurveyName, N2000, .con) {
            .con = con))
 }
 
-Classifiction <- classification_info("MILKLIM_Heischraal2012", "4010", con)
-
+Classifiction <- classification_info("MILKLIM_Heischraal2012", "%", con)
+Test <- classification_info(SurveyName, N2000, .con)
 
 ## vegetatieopnames testen
 # geeft nog probleem, misschien door in sql SMS te werken met die (syno) zodat er geen connectie nodig is voor Futon databank.
 
+con_Cydonia <- dbConnect(odbc::odbc(), .connection_string = "Driver=SQL Server;Server=inbo-sql07-prd.inbo.be,1433;Database=D0010_00_Cydonia;Trusted_Connection=Yes;")
+con_Futon <- dbConnect(odbc::odbc(), .connection_string = "Driver=SQL Server;Server=inbo-sql07-prd.inbo.be,1433;Database=D0013_00_Futon;Trusted_Connection=Yes;")
 
-Vegetation_info <- function(SurveyName, .con) {
-  dbGetQuery(con, glue_sql(
+Vegetation_info <- function(SurveyName, con_Cydonia, con_Futon) {
+  dbGetQuery(con_Cydonia, con_Futon, glue_sql(
     "SELECT
-    ivR.[RecordingGivid]
-    , ivRL_Layer.LayerCode
-    , ivRL_Layer.CoverCode
-    , ivRL_Iden.TaxonFullText as OrignalName
+    D0010_00_Cydonia.ivR.[RecordingGivid]
+    , D0010_00_Cydonia.ivRL_Layer.LayerCode
+    , D0010_00_Cydonia.ivRL_Layer.CoverCode
+    , D0010_00_Cydonia.ivRL_Iden.TaxonFullText as OrignalName
     , Synoniem.ScientificName
-    , ivRL_Iden.PhenologyCode
-    , ivRL_Taxon.CoverageCode
-    , ftCover.PctValue
-    , ftAGL.Description as RecordingScale
-    FROM [dbo].[ivRecording] ivR
-    INNER JOIN [dbo].[ivRLLayer] ivRL_Layer on ivRL_Layer.RecordingID = ivR.Id
-    INNER JOIN [dbo].[ivRLTaxonOccurrence] ivRL_Taxon on ivRL_Taxon.LayerID = ivRL_Layer.ID
-    INNER JOIN [dbo].[ivRLIdentification] ivRL_Iden on ivRL_Iden.OccurrenceID = ivRL_Taxon.ID
+    , D0010_00_Cydonia.ivRL_Iden.PhenologyCode
+    , D0010_00_Cydonia.ivRL_Taxon.CoverageCode
+    , D0013_00_Futon.ftCover.PctValue
+    , D0013_00_Futon.ftAGL.Description as RecordingScale
+    FROM [D0010_00_Cydonia].[dbo].[ivRecording] ivR
+    INNER JOIN [D0010_00_Cydonia].[dbo].[ivRLLayer] ivRL_Layer on ivRL_Layer.RecordingID = ivR.Id
+    INNER JOIN [D0010_00_Cydonia].[dbo].[ivRLTaxonOccurrence] ivRL_Taxon on ivRL_Taxon.LayerID = ivRL_Layer.ID
+    INNER JOIN [D0010_00_Cydonia].[dbo].[ivRLIdentification] ivRL_Iden on ivRL_Iden.OccurrenceID = ivRL_Taxon.ID
     LEFT JOIN (SELECT ftTaxon.TaxonName AS TaxonFullText
     , COALESCE([GetSyn].TaxonName, ftTaxon.TaxonName) AS ScientificName
     , COALESCE([GetSyn].TaxonGIVID, ftTaxon.TaxonGIVID) AS TAXON_LIST_ITEM_KEY
     , COALESCE([GetSyn].TaxonQuickCode, ftTaxon.TaxonQuickCode) AS QuickCode
-    FROM [syno].[Futon_dbo_ftTaxon] ftTaxon
-    INNER JOIN [syno].[Futon_dbo_ftTaxonListItem] ftTLI ON ftTLI.TaxonGIVID = ftTaxon.TaxonGIVID
+    FROM [D0013_00_Futon].[dbo].[ftTaxon] ftTaxon
+    INNER JOIN [D0013_00_Futon].[dbo].[ftTaxonListItem] ftTLI ON ftTLI.TaxonGIVID = ftTaxon.TaxonGIVID
     LEFT JOIN (SELECT ftTaxonLI.TaxonListItemGIVID
     , ftTaxon.TaxonGIVID
     , ftTaxon.TaxonName
     , ftTaxon.TaxonQuickCode
     , ftAGL.ListName
     , ftTaxonLI.PreferedListItemGIVID
-    FROM [syno].[Futon_dbo_ftActionGroupList] ftAGL
-    INNER JOIN [syno].[Futon_dbo_ftTaxonListItem] ftTaxonLI ON ftTaxonLI.TaxonListGIVID = ftAGL.ListGIVID
-    LEFT JOIN [syno].[Futon_dbo_ftTaxon] ftTaxon ON ftTaxon.TaxonGIVID = ftTaxonLI.TaxonGIVID
+    FROM [D0013_00_Futon].[dbo].[ftActionGroupList] ftAGL
+    INNER JOIN [D0013_00_Futon].[dbo].[ftTaxonListItem] ftTaxonLI ON ftTaxonLI.TaxonListGIVID = ftAGL.ListGIVID
+    LEFT JOIN [D0013_00_Futon].[dbo].[ftTaxon] ftTaxon ON ftTaxon.TaxonGIVID = ftTaxonLI.TaxonGIVID
     WHERE 1=1
     AND ftAGL.ListName = 'INBO-2011 Sci'
     ) GetSyn ON GetSyn.TaxonListItemGIVID = ftTLI.PreferedListItemGIVID
     WHERE ftTLI.TaxonListGIVID = 'TL2011092815101010'
     ) Synoniem on ivRL_Iden.TaxonFullText = Synoniem.TaxonFullText collate Latin1_General_CI_AI
-    LEFT JOIN [dbo].[ivRLResources] ivRL_Res on ivRL_Res.ResourceGIVID = ivRL_Taxon.CoverageResource
-    LEFT JOIN [syno].[Futon_dbo_ftActionGroupList] ftAGL on ftAGL.ActionGroup = ivRL_Res.ActionGroup collate Latin1_General_CI_AI
+    LEFT JOIN [D0010_00_Cydonia].[dbo].[ivRLResources] ivRL_Res on ivRL_Res.ResourceGIVID = ivRL_Taxon.CoverageResource
+    LEFT JOIN [D0013_00_Futon].[dbo].[ftActionGroupList] ftAGL on ftAGL.ActionGroup = ivRL_Res.ActionGroup collate Latin1_General_CI_AI
     AND ftAGL.ListName = ivRL_Res.ListName collate Latin1_General_CI_AI
-    LEFT JOIN [syno].[Futon_dbo_ftCoverValues] ftCover on ftCover.ListGIVID = ftAGL.ListGIVID
+    LEFT JOIN [D0013_00_Futon].[dbo].[ftCoverValues] ftCover on ftCover.ListGIVID = ftAGL.ListGIVID
     AND ivRL_Taxon.CoverageCode = ftCover.Code collate Latin1_General_CI_AI
     WHERE ivR.NeedsWork = 0
     AND ivRL_Iden.Preferred = 1
     AND ivS.Name LIKE {SurveyName}",
                ivS.Name = SurveyName,
-               .con = con ))
+               .con = con_Cydonia, 
+                .con2 = con_Futon))
 }
 
-OudeLanden <- Vegetation_info("OudeLanden_1979", con)
+OudeLanden <- Vegetation_info("OudeLanden_1979", con_Cydonia, con_Futon)
