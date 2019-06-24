@@ -3,7 +3,7 @@
 #' @description This function queries the INBOVEG database for survey information (metadata about surveys) for one or more survey(s) by the name of the survey. See the examples for how to get information for all surveys.
 #'
 #' @param survey A character vector giving the names of the surveys for which
-#' you want to extraxt survey information.
+#' you want to extract survey information.
 #' @param con dbconnection with the database 'Cydonia' on the inbo-sql07-prd server
 #'
 #' @return A data.frame with variables Id, Name, Description, Owner and Creator.
