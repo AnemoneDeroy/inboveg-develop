@@ -16,6 +16,7 @@ The following packages are needed to run this code:
 * odbc
 * glue
 
+
 Be sure you have reading-rights for CYDONIA
 otherwise place an ICT-call (ict.helpdesk@inbo.be)
 
@@ -27,6 +28,7 @@ library(DBI)
 library(glue)
 library(knitr)
 library(odbc)
+library(inborutils)
 
 opts_chunk$set(echo = TRUE)
 
@@ -67,16 +69,15 @@ survey_info <- function(survey, con) {
 ```
 
 Example
-  survey <- "OudeLanden_1979"
-  SurveyInfo <- survey_info(survey, con)
-  SurveyInfo
+  * survey <- "OudeLanden_1979"
+  * SurveyInfo <- survey_info(survey, con)
+  * SurveyInfo
   
 The whole list of surveys is given by  
-AllSurveys <- survey_info(survey = "%", .con = con)
+  *AllSurveys <- survey_info(survey = "%", .con = con)
 
-Only a part of the survey name is known? Or all the surveys of "MILKLIM" for example want to be given
-Part <-"torf"
-PartSurvey <- survey_info(survey = (str_detect(tolower(Name), "PART"))) ## dit werkt dus nog niet!!
+Only a part of the survey name is known? 
+ *PartSurveys <- survey_info(survey = "%MILKLIM%", .con = con)
 
 
 ## *iv_headerinfo*: 
@@ -86,9 +87,6 @@ PartSurvey <- survey_info(survey = (str_detect(tolower(Name), "PART"))) ## dit w
     - RecType = c('Classic', 'Classic-emmer', 'Classic-ketting', 'BioHab', 'ABS')
     - SurveyName = to get the list, run the code under "## iv_survey
 
-RecType <- "Classic"
-SurveyName <- "input_name_survey"
-    
 ```{r}
 
 header_info <- function(SurveyName, RecType, .con) {
@@ -120,23 +118,20 @@ header_info <- function(SurveyName, RecType, .con) {
 
 ```
 
-Give up survey-name and Recordtype in this function
-
-Headerinfo <- header_info(SurveyName, RecType, con)
-Example
-  Headerinfo <- header_info("OudeLanden_1979", "Classic", con)
+Example 
+  * RecType <- "Classic"
+  * SurveyName <- "OudeLanden_1979"
+  * Headerinfo <- header_info(SurveyName, RecType, con)
+  * Headerinfo <- header_info("OudeLanden_1979", "Classic", con)
 
 
 ## *iv_Classification_N2000*:
 
-- gives the N2000code, recorderd by the observer of the relevé
+- gives the N2000-code, recorderd by the observer of the relevé at the field (with or without field-key)
 - specify the name of the survey you want to use. if none, all the classification records in inboveg will be given
 - specify the N2000 code to retrieve all relevés indicated as this code
 
-SurveyName <- "input_name_survey"
-N2000 <- "N2000code"
 
- 
 ```{r}
 classification_info <- function(SurveyName, N2000, .con) {
   dbGetQuery(con, glue_sql(
@@ -179,7 +174,11 @@ classification_info <- function(SurveyName, N2000, .con) {
 
 ```
 
-Classifiction <- classification_info("OudeLanden_1979", "N2000", con)
+Example
+  * SurveyName <- "MILKLIM_Heischraal2012"
+  * N2000 <- "4010"
+  * Classifiction <- classification_info(SurveyName, N2000, con)
+  * Classifiction <- classification_info("MILKLIM_Heischraal2012", "4010", con) 
 
 ## iv_Classification_BWK
 
@@ -187,10 +186,6 @@ Classifiction <- classification_info("OudeLanden_1979", "N2000", con)
 - specify the name of the survey you want to use. if none, all the classification records in inboveg will be given
 - specify the bwk-code to retrieve all relevés indicated as this code
 
-SurveyName <- "input_name_survey"
-BWK <- "bwkcode"
-
- 
 ```{r}
 classification_info <- function(SurveyName, BWK, .con) {
   dbGetQuery(con, glue_sql(
@@ -230,7 +225,11 @@ classification_info <- function(SurveyName, BWK, .con) {
 
 ```
 
-Classifiction <- classification_info("OudeLanden_1979", "BWK", con)
+Example 
+  * SurveyName <- "xxx"
+  * BWK <- "xx"
+  * Classifiction <- classification_info(SurveyName, BWK, con)
+  * Classifiction <- classification_info("xx", "xx", con) ## nog goed voorbeeld zoeken
 
 ## iv_Relevés
 
