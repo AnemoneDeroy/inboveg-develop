@@ -44,13 +44,12 @@ gives the list of all surveys in InboVeg
 - define the name of the survey by survey <- "name"
 
 ```{r}
+
 Survey <- tbl(con, from = "ivSurvey")
 
 Survey %>% 
-  select(Name) %>% 
-  filter(Name = "Aardbeivlinder_Drongengoed")
-
-survey <- tbl(con, from = "ivSurvey")
+   filter(Name = "Aardbeivlinder_Drongengoed") %>% 
+   Select(Name)
 
 survey_info <- function(table, survey) {
  table %>%
@@ -58,6 +57,8 @@ survey_info <- function(table, survey) {
      filter(Name  %LIKE% paste0("%", survey, "%"))
     
 }
+
+survey_info(table = survey, survey = Part)
 
 ```
 Example
