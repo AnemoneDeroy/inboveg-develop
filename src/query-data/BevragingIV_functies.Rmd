@@ -82,7 +82,7 @@ Only a part of the survey name is known?
 
 ## *iv_headerinfo*: 
 
-- contains metadata for a vegetation-relevé (one row per vegetation-relevé identified by 'RecordingGivid')
+gives the metadata for a vegetation-relevé (one row per vegetation-relevé identified by 'RecordingGivid')
 - specify two parameters for the function:
     - RecType = c('Classic', 'Classic-emmer', 'Classic-ketting', 'BioHab', 'ABS')
     - SurveyName = to get the list, run the code under "## iv_survey
@@ -127,24 +127,20 @@ Example
 
 ## *iv_Classification_N2000*:
 
-- gives the N2000-code, recorderd by the observer of the relevé at the field (with or without field-key)
+gives the N2000-code, recorderd by the observer of the relevé at the field (with or without field-key)
 - specify the name of the survey you want to use. if none, all the classification records in inboveg will be given
 - specify the N2000 code to retrieve all relevés indicated as this code
 
 
 ```{r}
-classification_info <- function(SurveyName, N2000, .con) {
+classification_info_N2000 <- function(SurveyName, N2000, .con) {
   dbGetQuery(con, glue_sql(
     "SELECT 
     ivR.RecordingGivid
     , ivS.Name as survey
     , ivRLClas.Classif
-    --, ivRLClas.ClassifResource
     , ivRLRes_Class.ActionGroup
     , ivRLRes_Class.ListName
-    --, ftAGL_Class.ListGIVID
-    --, ftBWK.ListGIVID
-    , ftBWK.Description as LocalClassification
     , ftN2k.Description  as Habitattype
     , ivRLClas.Cover
     , ftC.PctValue
@@ -154,9 +150,6 @@ classification_info <- function(SurveyName, N2000, .con) {
     LEFT JOIN [dbo].[ivRLResources] ivRLRes_Class on ivRLRes_Class.ResourceGIVID = ivRLClas.ClassifResource
     LEFT JOIN [syno].[Futon_dbo_ftActionGroupList] ftAGL_Class on ftAGL_Class.ActionGroup = ivRLRes_Class.ActionGroup collate Latin1_General_CI_AI
     AND ftAGL_Class.ListName = ivRLRes_Class.ListName collate Latin1_General_CI_AI
-    --MAAR hoe los ik dit op als er twee type lijsten aanhangen? gevolg van vroeger opdeling in Local en AnnexI classification?
-    LEFT JOIN [syno].[Futon_dbo_ftBWKValues] ftBWK on ftBWK.Code = ivRLClas.Classif collate Latin1_General_CI_AI 
-    AND ftBWK.ListGIVID = ftAGL_Class.ListGIVID 
     LEFT JOIN [syno].[Futon_dbo_ftN2kValues] ftN2K on ftN2K.Code = ivRLClas.Classif collate Latin1_General_CI_AI 
     AND ftN2K.ListGIVID = ftAGL_Class.ListGIVID 
     LEFT JOIN [dbo].[ivRLResources] ivRLR_C on ivRLR_C.ResourceGIVID = ivRLClas.CoverResource
@@ -177,17 +170,17 @@ classification_info <- function(SurveyName, N2000, .con) {
 Example
   * SurveyName <- "MILKLIM_Heischraal2012"
   * N2000 <- "4010"
-  * Classifiction <- classification_info(SurveyName, N2000, con)
-  * Classifiction <- classification_info("MILKLIM_Heischraal2012", "4010", con) 
+  * Classifiction <- classification_info_N2000(SurveyName, N2000, con)
+  * Classifiction2 <- classification_info_N2000("MILKLIM_Heischraal2012", "4010", con) 
 
 ## iv_Classification_BWK
 
-- gives the BWK-code, recorderd by the observer of the relevé
+gives the BWK-code, recorderd by the observer of the relevé
 - specify the name of the survey you want to use. if none, all the classification records in inboveg will be given
 - specify the bwk-code to retrieve all relevés indicated as this code
 
 ```{r}
-classification_info <- function(SurveyName, BWK, .con) {
+classification_info_bwk <- function(SurveyName, BWK, .con) {
   dbGetQuery(con, glue_sql(
     "SELECT 
     ivR.RecordingGivid
@@ -196,7 +189,6 @@ classification_info <- function(SurveyName, BWK, .con) {
     , ivRLRes_Class.ActionGroup
     , ivRLRes_Class.ListName
     , ftBWK.Description as LocalClassification
-    , ftN2k.Description  as Habitattype
     , ivRLClas.Cover
     , ftC.PctValue
     FROM ivRecording ivR
@@ -205,11 +197,8 @@ classification_info <- function(SurveyName, BWK, .con) {
     LEFT JOIN [dbo].[ivRLResources] ivRLRes_Class on ivRLRes_Class.ResourceGIVID = ivRLClas.ClassifResource
     LEFT JOIN [syno].[Futon_dbo_ftActionGroupList] ftAGL_Class on ftAGL_Class.ActionGroup = ivRLRes_Class.ActionGroup collate Latin1_General_CI_AI
     AND ftAGL_Class.ListName = ivRLRes_Class.ListName collate Latin1_General_CI_AI
-    --MAAR hoe los ik dit op als er twee type lijsten aanhangen? gevolg van vroeger opdeling in Local en AnnexI classification?
     LEFT JOIN [syno].[Futon_dbo_ftBWKValues] ftBWK on ftBWK.Code = ivRLClas.Classif collate Latin1_General_CI_AI 
     AND ftBWK.ListGIVID = ftAGL_Class.ListGIVID 
-    LEFT JOIN [syno].[Futon_dbo_ftN2kValues] ftN2K on ftN2K.Code = ivRLClas.Classif collate Latin1_General_CI_AI 
-    AND ftN2K.ListGIVID = ftAGL_Class.ListGIVID 
     LEFT JOIN [dbo].[ivRLResources] ivRLR_C on ivRLR_C.ResourceGIVID = ivRLClas.CoverResource
     LEFT JOIN [syno].[Futon_dbo_ftActionGroupList] ftAGL_C on ftAGL_C.ActionGroup = ivRLR_C.ActionGroup collate Latin1_General_CI_AI
     AND ftAGL_C.ListName = ivRLR_C.ListName collate Latin1_General_CI_AI
@@ -226,16 +215,66 @@ classification_info <- function(SurveyName, BWK, .con) {
 ```
 
 Example 
-  * SurveyName <- "xxx"
-  * BWK <- "xx"
-  * Classifiction <- classification_info(SurveyName, BWK, con)
-  * Classifiction <- classification_info("xx", "xx", con) ## nog goed voorbeeld zoeken
+  * SurveyName <- "CultuurgraslandTypologie"
+  * BWK <- "h"
+  * Classifiction <- classification_info_bwk(SurveyName, BWK, con)
+  * Classifiction2 <- classification_info_bwk("CultuurgraslandTypologie", "h", con) 
+
+
+
+## iv_classification
+gives the N2000-code or BWK-code, recorderd by the observer of the relevé at the field (with or without field-key)
+- specify the name of the survey you want to use. if none, all the classification records in inboveg will be given
+- specify the N2000 or BWK code to retrieve all relevés indicated as this code
+
+```{r}
+classification_info_alles <- function(SurveyName, Classif, .con) {
+  dbGetQuery(con, glue_sql(
+    "Select ivR.RecordingGivid
+    , ivS.Name
+    , ivRLClas.Classif
+    , ivRLRes_Class.ActionGroup
+    , ivRLRes_Class.ListName
+    , ftBWK.Description as LocalClassification
+    , ftN2k.Description  as Habitattype
+    , ivRLClas.Cover
+    , ftC.PctValue
+    FROM ivRecording ivR
+    INNER JOIN ivSurvey ivS on ivS.Id = ivR.surveyId
+    LEFT JOIN [dbo].[ivRLClassification] ivRLClas on ivRLClas.RecordingID = ivR.Id
+    LEFT JOIN [dbo].[ivRLResources] ivRLRes_Class on ivRLRes_Class.ResourceGIVID = ivRLClas.ClassifResource
+    LEFT JOIN [syno].[Futon_dbo_ftActionGroupList] ftAGL_Class on ftAGL_Class.ActionGroup = ivRLRes_Class.ActionGroup collate Latin1_General_CI_AI
+    AND ftAGL_Class.ListName = ivRLRes_Class.ListName collate Latin1_General_CI_AI
+    LEFT JOIN [syno].[Futon_dbo_ftBWKValues] ftBWK on ftBWK.Code = ivRLClas.Classif collate Latin1_General_CI_AI 
+    AND ftBWK.ListGIVID = ftAGL_Class.ListGIVID 
+    LEFT JOIN [syno].[Futon_dbo_ftN2kValues] ftN2K on ftN2K.Code = ivRLClas.Classif collate Latin1_General_CI_AI 
+    AND ftN2K.ListGIVID = ftAGL_Class.ListGIVID 
+    LEFT JOIN [dbo].[ivRLResources] ivRLR_C on ivRLR_C.ResourceGIVID = ivRLClas.CoverResource
+    LEFT JOIN [syno].[Futon_dbo_ftActionGroupList] ftAGL_C on ftAGL_C.ActionGroup = ivRLR_C.ActionGroup collate Latin1_General_CI_AI
+    AND ftAGL_C.ListName = ivRLR_C.ListName collate Latin1_General_CI_AI
+    LEFT JOIN [syno].[Futon_dbo_ftCoverValues] ftC on ftC.Code = ivRLClas.Cover collate Latin1_General_CI_AI
+    AND ftAGL_C.ListGIVID = ftC.ListGIVID 
+    WHERE ivRLClas.Classif is not NULL ",
+    ivS.Name = SurveyName,
+    ivRLClas.Classif = Classif,
+    .con = con))
+}
+```
+
+Example 
+    *SurveyName <- "MILKLIM_Heischraal2012"
+    *Classif <- "4010" 
+    *Classif_info <- classification_info_alles(SurveyName, Classif, con)
+    *Classif_info2 <- classification_info_alles("MILKLIM_Heischraal2012", "4010", con)
+    *Allecodes <- classification_info_alles(SurveyName = "%", Classif = "%", .con = con)
+
 
 ## iv_Relevés
 
-Getting the relevés of one Survey
+gives the relevés (plant list with coverage) of one Survey
+ - specify the name of the survey you want to use. if none, all the records in inboveg will be given (to avoid!)
 
-```{r, include = FALSE}
+```{r}
 
 Vegetation_info <- function(SurveyName, .con) {
    dbGetQuery(con, glue_sql(
@@ -292,9 +331,10 @@ Vegetation_info <- function(SurveyName, .con) {
 
 Vegetatieopname werkt nog niet, hoe omgaan met 2de databank bevragen. hier zoals in Ssms (syno) gewerkt, de tabellen zijn toegevoegd door joL aan Cydonia conncetie via die Syno....
 
+# Connection
 To close the connection:
 
-```{r, eval = FALSE}
+```{r}
 dbDisconnect(con)
 
 rm(con)
