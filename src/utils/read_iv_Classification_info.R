@@ -25,37 +25,33 @@
 
 read_iv_classification_info <- function(SurveyName, Classif, .con) {
   dbGetQuery(con, glue_sql(
-    "SELECT
-    ivR.RecordingGivid
-    , ivS.Name as survey
-    , ivRLClas.Classif as Classification code
-    , ivRLRes_Class.ActionGroup as List
+    "Select ivR.RecordingGivid
+    , ivS.Name
+    , ivRLClas.Classif
+    , ivRLRes_Class.ActionGroup
     , ivRLRes_Class.ListName
     , ftBWK.Description as LocalClassification
-    , ftN2k.Description as Habitattype
+    , ftN2k.Description  as Habitattype
     , ivRLClas.Cover
-    , ftC.PctValue as percentage cover
+    , ftC.PctValue
     FROM ivRecording ivR
     INNER JOIN ivSurvey ivS on ivS.Id = ivR.surveyId
     LEFT JOIN [dbo].[ivRLClassification] ivRLClas on ivRLClas.RecordingID = ivR.Id
     LEFT JOIN [dbo].[ivRLResources] ivRLRes_Class on ivRLRes_Class.ResourceGIVID = ivRLClas.ClassifResource
     LEFT JOIN [syno].[Futon_dbo_ftActionGroupList] ftAGL_Class on ftAGL_Class.ActionGroup = ivRLRes_Class.ActionGroup collate Latin1_General_CI_AI
     AND ftAGL_Class.ListName = ivRLRes_Class.ListName collate Latin1_General_CI_AI
-    LEFT JOIN [syno].[Futon_dbo_ftBWKValues] ftBWK on ftBWK.Code = ivRLClas.Classif collate Latin1_General_CI_AI
-    AND ftBWK.ListGIVID = ftAGL_Class.ListGIVID
-    LEFT JOIN [syno].[Futon_dbo_ftN2kValues] ftN2K on ftN2K.Code = ivRLClas.Classif collate Latin1_General_CI_AI
-    AND ftN2K.ListGIVID = ftAGL_Class.ListGIVID
+    LEFT JOIN [syno].[Futon_dbo_ftBWKValues] ftBWK on ftBWK.Code = ivRLClas.Classif collate Latin1_General_CI_AI 
+    AND ftBWK.ListGIVID = ftAGL_Class.ListGIVID 
+    LEFT JOIN [syno].[Futon_dbo_ftN2kValues] ftN2K on ftN2K.Code = ivRLClas.Classif collate Latin1_General_CI_AI 
+    AND ftN2K.ListGIVID = ftAGL_Class.ListGIVID 
     LEFT JOIN [dbo].[ivRLResources] ivRLR_C on ivRLR_C.ResourceGIVID = ivRLClas.CoverResource
     LEFT JOIN [syno].[Futon_dbo_ftActionGroupList] ftAGL_C on ftAGL_C.ActionGroup = ivRLR_C.ActionGroup collate Latin1_General_CI_AI
     AND ftAGL_C.ListName = ivRLR_C.ListName collate Latin1_General_CI_AI
     LEFT JOIN [syno].[Futon_dbo_ftCoverValues] ftC on ftC.Code = ivRLClas.Cover collate Latin1_General_CI_AI
-    AND ftAGL_C.ListGIVID = ftC.ListGIVID
-    WHERE ivRLClas.Classif is not NULL
-    AND ivS.Name LIKE {SurveyName}
-    AND ivRLClas.Classif LIKE {Classif}",
+    AND ftAGL_C.ListGIVID = ftC.ListGIVID 
+    WHERE ivRLClas.Classif is not NULL ",
     ivS.Name = SurveyName,
     ivRLClas.Classif = Classif,
     .con = con))
 }
-
 
