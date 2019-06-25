@@ -1,5 +1,3 @@
-#'PROBLEEM zowel connectie met futon als met cydonia nodig? kan dit? 
-#' 
 #'   @title Query relevé information from INBOVEG
 #'
 #' @description This function queries the INBOVEG database for relevé information for a survey by the name of the survey. 
