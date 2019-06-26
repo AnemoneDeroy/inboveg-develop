@@ -154,7 +154,7 @@ Test3 <- survey_info(survey, owner, con)
 Test3
 
 
-
+#############################
 ## testen headerinfo
 
 header_info <- function(Name, RecType, .con) {
@@ -194,7 +194,7 @@ dbDisconnect(con)
 rm(con)
 
 
-
+###############################
 ## testen classification - N2000 
 
 SurveyName <- "MILKLIM_Heischraal2012"
@@ -407,59 +407,134 @@ Allecodes <- read_iv_classification_info_alles(SurveyName = "%", Classif = "%", 
 ## vegetatieopnames testen
 
 ### uit MsqlSMS en dan in functie kappen
+## geeft altijd lege velden, werkt wel met recordingGIVID
 
-relevé_info <- function(SurveyName, .con) {
+relevé_info_RecordingGivid <- function(RecordingGivid, .con) {
   dbGetQuery(con, glue_sql(
                 "SELECT ivR.[RecordingGivid]
-                      , ivRL_Layer.LayerCode
-                      , ivRL_Layer.CoverCode
-                      , ivRL_Iden.TaxonFullText as OrignalName
-                      , Synoniem.ScientificName
-                      , ivRL_Iden.PhenologyCode
-                      , ivRL_Taxon.CoverageCode
-                      , ftCover.PctValue
-                      , ftAGL.Description as RecordingScale
-                      FROM [dbo].[ivRecording] ivR 
- --Deel met soortenlijst en synoniem
-                      INNER JOIN [dbo].[ivRLLayer] ivRL_Layer on ivRL_Layer.RecordingID = ivR.Id
-                      INNER JOIN [dbo].[ivRLTaxonOccurrence] ivRL_Taxon on ivRL_Taxon.LayerID = ivRL_Layer.ID
-                      INNER JOIN [dbo].[ivRLIdentification] ivRL_Iden on ivRL_Iden.OccurrenceID = ivRL_Taxon.ID
-                      LEFT JOIN (SELECT ftTaxon.TaxonName AS TaxonFullText
-                                 , COALESCE([GetSyn].TaxonName, ftTaxon.TaxonName) AS ScientificName
-                                 , COALESCE([GetSyn].TaxonGIVID, ftTaxon.TaxonGIVID) AS TAXON_LIST_ITEM_KEY
-                                 , COALESCE([GetSyn].TaxonQuickCode, ftTaxon.TaxonQuickCode) AS QuickCode
-                                 FROM [syno].[Futon_dbo_ftTaxon] ftTaxon
-                                 INNER JOIN [syno].[Futon_dbo_ftTaxonListItem] ftTLI ON ftTLI.TaxonGIVID = ftTaxon.TaxonGIVID 
-                                 LEFT JOIN (SELECT ftTaxonLI.TaxonListItemGIVID
+	                      , ivRL_Layer.LayerCode
+                        , ivRL_Layer.CoverCode
+                        , ivRL_Iden.TaxonFullText as OrignalName
+                        , Synoniem.ScientificName
+                        , ivRL_Iden.PhenologyCode
+                        , ivRL_Taxon.CoverageCode
+                        , ftCover.PctValue
+                        , ftAGL.Description as RecordingScale
+                FROM [dbo].[ivRecording] ivR 
+       -- Deel met soortenlijst en synoniem
+                INNER JOIN [dbo].[ivRLLayer] ivRL_Layer on ivRL_Layer.RecordingID = ivR.Id
+                INNER JOIN [dbo].[ivRLTaxonOccurrence] ivRL_Taxon on ivRL_Taxon.LayerID = ivRL_Layer.ID
+                INNER JOIN [dbo].[ivRLIdentification] ivRL_Iden on ivRL_Iden.OccurrenceID = ivRL_Taxon.ID
+                LEFT JOIN (SELECT ftTaxon.TaxonName AS TaxonFullText
+                                , COALESCE([GetSyn].TaxonName, ftTaxon.TaxonName) AS ScientificName
+                                , COALESCE([GetSyn].TaxonGIVID, ftTaxon.TaxonGIVID) AS TAXON_LIST_ITEM_KEY
+                                , COALESCE([GetSyn].TaxonQuickCode, ftTaxon.TaxonQuickCode) AS QuickCode
+                            FROM [syno].[Futon_dbo_ftTaxon] ftTaxon
+                            INNER JOIN [syno].[Futon_dbo_ftTaxonListItem] ftTLI ON ftTLI.TaxonGIVID = ftTaxon.TaxonGIVID 
+                            LEFT JOIN (SELECT ftTaxonLI.TaxonListItemGIVID
                                             , ftTaxon.TaxonGIVID
                                             , ftTaxon.TaxonName
                                             , ftTaxon.TaxonQuickCode
                                             , ftAGL.ListName
                                             , ftTaxonLI.PreferedListItemGIVID
-                                            FROM [syno].[Futon_dbo_ftActionGroupList] ftAGL 
-                                            INNER JOIN [syno].[Futon_dbo_ftTaxonListItem] ftTaxonLI ON ftTaxonLI.TaxonListGIVID = ftAGL.ListGIVID 
-                                            LEFT JOIN [syno].[Futon_dbo_ftTaxon] ftTaxon ON ftTaxon.TaxonGIVID = ftTaxonLI.TaxonGIVID 
-                                            WHERE 1=1
-                                            AND ftAGL.ListName = 'INBO-2011 Sci'	
-                                 ) GetSyn ON GetSyn.TaxonListItemGIVID = ftTLI.PreferedListItemGIVID
-                            WHERE ftTLI.TaxonListGIVID = 'TL2011092815101010'
-                             ) Synoniem on ivRL_Iden.TaxonFullText = Synoniem.TaxonFullText collate Latin1_General_CI_AI
--- Hier begint deel met bedekking
-                      LEFT JOIN [dbo].[ivRLResources] ivRL_Res on ivRL_Res.ResourceGIVID = ivRL_Taxon.CoverageResource
-                      LEFT JOIN [syno].[Futon_dbo_ftActionGroupList] ftAGL on ftAGL.ActionGroup = ivRL_Res.ActionGroup collate Latin1_General_CI_AI
-                      AND ftAGL.ListName = ivRL_Res.ListName collate Latin1_General_CI_AI
-                      LEFT JOIN [syno].[Futon_dbo_ftCoverValues] ftCover on ftCover.ListGIVID = ftAGL.ListGIVID
-                      AND ivRL_Taxon.CoverageCode = ftCover.Code collate Latin1_General_CI_AI
-                      WHERE ivR.NeedsWork = 0
-                      AND ivRL_Iden.Preferred = 1
-                      AND ftAGL.ListName = 'INBO-2011 Sci'
-                      ##AND ivR.RecordingGivid = 'IV2014070",
-                ivS.Name = SurveyName,
+                                         FROM [syno].[Futon_dbo_ftActionGroupList] ftAGL 
+                                         INNER JOIN [syno].[Futon_dbo_ftTaxonListItem] ftTaxonLI ON ftTaxonLI.TaxonListGIVID = ftAGL.ListGIVID 
+                                         LEFT JOIN [syno].[Futon_dbo_ftTaxon] ftTaxon ON ftTaxon.TaxonGIVID = ftTaxonLI.TaxonGIVID 
+                                         WHERE 1=1
+                                         AND ftAGL.ListName = 'INBO-2011 Sci'	
+                                       ) GetSyn ON GetSyn.TaxonListItemGIVID = ftTLI.PreferedListItemGIVID
+                           WHERE ftTLI.TaxonListGIVID = 'TL2011092815101010'
+                          ) Synoniem on ivRL_Iden.TaxonFullText = Synoniem.TaxonFullText collate Latin1_General_CI_AI
+         -- Hier begint deel met bedekking
+                LEFT JOIN [dbo].[ivRLResources] ivRL_Res on ivRL_Res.ResourceGIVID = ivRL_Taxon.CoverageResource
+                LEFT JOIN [syno].[Futon_dbo_ftActionGroupList] ftAGL on ftAGL.ActionGroup = ivRL_Res.ActionGroup collate Latin1_General_CI_AI
+                AND ftAGL.ListName = ivRL_Res.ListName collate Latin1_General_CI_AI
+                LEFT JOIN [syno].[Futon_dbo_ftCoverValues] ftCover on ftCover.ListGIVID = ftAGL.ListGIVID
+                AND ivRL_Taxon.CoverageCode = ftCover.Code collate Latin1_General_CI_AI
+                WHERE ivR.NeedsWork = 0
+                AND ivRL_Iden.Preferred = 1
+                -- AND ivR.RecordingGivid = 'IV2014070310423184' --(dees bevat Betula pubescens Ehrh., in inboveg is prefered Betula alba L.
+                AND ivR.RecordingGivid LIKE {RecordingGivid}",
+                ivR.RecordingGivid = RecordingGivid,
                 .con = con))
 }
 
 # Example 
-OudeLanden <- relevé_info("OudeLanden_1979", con)
+Betula <- relevé_info("IV2014070310423184", con)
+
+## nu ombouwen naar basis van SurveyName ipv recordingGIVID
+relevé_info_surveyname <- function(SurveyName, .con) {
+  dbGetQuery(con, glue_sql(
+          "SELECT ivS.Name
+                  , ivR.[RecordingGivid]
+                  , ivRL_Layer.LayerCode
+                  , ivRL_Layer.CoverCode
+                  , ivRL_Iden.TaxonFullText as OrignalName
+                  , Synoniem.ScientificName
+                  , ivRL_Iden.PhenologyCode
+                  , ivRL_Taxon.CoverageCode
+                  , ftCover.PctValue
+                  , ftAGL.Description as RecordingScale
+          FROM  dbo.ivSurvey ivS
+          INNER JOIN [dbo].[ivRecording] ivR  ON ivR.SurveyId = ivS.Id
+      -- Deel met soortenlijst en synoniem
+          INNER JOIN [dbo].[ivRLLayer] ivRL_Layer on ivRL_Layer.RecordingID = ivR.Id
+          INNER JOIN [dbo].[ivRLTaxonOccurrence] ivRL_Taxon on ivRL_Taxon.LayerID = ivRL_Layer.ID
+          INNER JOIN [dbo].[ivRLIdentification] ivRL_Iden on ivRL_Iden.OccurrenceID = ivRL_Taxon.ID
+          LEFT JOIN (SELECT ftTaxon.TaxonName AS TaxonFullText
+                          , COALESCE([GetSyn].TaxonName, ftTaxon.TaxonName) AS ScientificName
+                          , COALESCE([GetSyn].TaxonGIVID, ftTaxon.TaxonGIVID) AS TAXON_LIST_ITEM_KEY
+                          , COALESCE([GetSyn].TaxonQuickCode, ftTaxon.TaxonQuickCode) AS QuickCode
+                      FROM [syno].[Futon_dbo_ftTaxon] ftTaxon
+                      INNER JOIN [syno].[Futon_dbo_ftTaxonListItem] ftTLI ON ftTLI.TaxonGIVID = ftTaxon.TaxonGIVID 
+                      LEFT JOIN (SELECT ftTaxonLI.TaxonListItemGIVID
+                                      , ftTaxon.TaxonGIVID
+                                      , ftTaxon.TaxonName
+                                      , ftTaxon.TaxonQuickCode
+                                      , ftAGL.ListName
+                                      , ftTaxonLI.PreferedListItemGIVID
+                                FROM [syno].[Futon_dbo_ftActionGroupList] ftAGL 
+                                INNER JOIN [syno].[Futon_dbo_ftTaxonListItem] ftTaxonLI ON ftTaxonLI.TaxonListGIVID = ftAGL.ListGIVID 
+                                LEFT JOIN [syno].[Futon_dbo_ftTaxon] ftTaxon ON ftTaxon.TaxonGIVID = ftTaxonLI.TaxonGIVID 
+                                WHERE 1=1
+                                AND ftAGL.ListName = 'INBO-2011 Sci'	
+                              ) GetSyn ON GetSyn.TaxonListItemGIVID = ftTLI.PreferedListItemGIVID
+                         WHERE ftTLI.TaxonListGIVID = 'TL2011092815101010'
+                    ) Synoniem on ivRL_Iden.TaxonFullText = Synoniem.TaxonFullText collate Latin1_General_CI_AI
+      -- Hier begint deel met bedekking
+          LEFT JOIN [dbo].[ivRLResources] ivRL_Res on ivRL_Res.ResourceGIVID = ivRL_Taxon.CoverageResource
+          LEFT JOIN [syno].[Futon_dbo_ftActionGroupList] ftAGL on ftAGL.ActionGroup = ivRL_Res.ActionGroup collate Latin1_General_CI_AI
+          AND ftAGL.ListName = ivRL_Res.ListName collate Latin1_General_CI_AI
+          LEFT JOIN [syno].[Futon_dbo_ftCoverValues] ftCover on ftCover.ListGIVID = ftAGL.ListGIVID
+          AND ivRL_Taxon.CoverageCode = ftCover.Code collate Latin1_General_CI_AI
+          --WHERE ivR.NeedsWork = 0
+          AND ivRL_Iden.Preferred = 1
+          -- AND ivR.RecordingGivid = 'IV2014070310423184' --(dees bevat Betula pubescens Ehrh., in inboveg is prefered Betula alba L.
+          AND ivS.Name LIKE {SurveyName}",
+                ivS.Name = Name,
+                .con = con))
+}
+
+# Example 
+OudeLanden <- relevé_info_surveyname("OudeLanden_1979", con)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ## Werken met 2 verbindingen? geen oplossing en blijkbaar ook niet nodig 
@@ -554,7 +629,7 @@ iv_opnamen <- dbGetQuery(con,
                          WHERE 1=1
                          AND ivRLIdentification.Preferred = 1
                          AND ivRecTypeD.Name IN ('Classic', 'Classic-emmer', 'Classic-ketting')
-                         --AND ivSurvey.Name IN ('Sigma_LSVI_2012', '')
+                          AND ivSurvey.Name IN ('Sigma_LSVI_2012', '')
                          ORDER BY ivRLLayer.LayerCode;
                          ")
 
