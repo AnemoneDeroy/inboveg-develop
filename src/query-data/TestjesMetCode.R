@@ -519,24 +519,6 @@ relevé_info_surveyname <- function(SurveyName, .con) {
 OudeLanden <- relevé_info_surveyname("OudeLanden_1979", con)
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ## Werken met 2 verbindingen? geen oplossing en blijkbaar ook niet nodig 
 # geeft nog probleem, misschien door in sql SMS te werken met die (syno) zodat er geen connectie nodig is voor Futon databank.
 
