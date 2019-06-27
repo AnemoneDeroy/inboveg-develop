@@ -460,13 +460,12 @@ relevé_info_RecordingGivid <- function(RecordingGivid, .con) {
 }
 
 # Example 
-Betula <- relevé_info("IV2014070310423184", con)
+Betula <- relevé_info_RecordingGivid("IV2014070310423184", con)
 
 ## nu ombouwen naar basis van SurveyName ipv recordingGIVID
-relevé_info_surveyname <- function(SurveyName, .con) {
+relevé_info_surveyname <- function(survey_name, .con) {
   dbGetQuery(con, glue_sql(
-          "SELECT ivS.Name
-                  , ivR.[RecordingGivid]
+          "SELECT ivR.[RecordingGivid]
                   , ivRL_Layer.LayerCode
                   , ivRL_Layer.CoverCode
                   , ivRL_Iden.TaxonFullText as OrignalName
@@ -475,6 +474,7 @@ relevé_info_surveyname <- function(SurveyName, .con) {
                   , ivRL_Taxon.CoverageCode
                   , ftCover.PctValue
                   , ftAGL.Description as RecordingScale
+                  , ivS.Name
           FROM  dbo.ivSurvey ivS
           INNER JOIN [dbo].[ivRecording] ivR  ON ivR.SurveyId = ivS.Id
       -- Deel met soortenlijst en synoniem
@@ -507,11 +507,11 @@ relevé_info_surveyname <- function(SurveyName, .con) {
           AND ftAGL.ListName = ivRL_Res.ListName collate Latin1_General_CI_AI
           LEFT JOIN [syno].[Futon_dbo_ftCoverValues] ftCover on ftCover.ListGIVID = ftAGL.ListGIVID
           AND ivRL_Taxon.CoverageCode = ftCover.Code collate Latin1_General_CI_AI
-          --WHERE ivR.NeedsWork = 0
+          -- WHERE ivR.NeedsWork = 0
           AND ivRL_Iden.Preferred = 1
           -- AND ivR.RecordingGivid = 'IV2014070310423184' --(dees bevat Betula pubescens Ehrh., in inboveg is prefered Betula alba L.
-          AND ivS.Name LIKE {SurveyName}",
-                ivS.Name = Name,
+          AND ivS.Name LIKE {survey_name}",
+          survey_name = survey_name,
                 .con = con))
 }
 
