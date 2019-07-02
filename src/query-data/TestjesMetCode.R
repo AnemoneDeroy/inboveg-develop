@@ -4,6 +4,7 @@ library(glue)
 library(knitr)
 library(odbc)
 library(assertthat)
+library(inborutils)
 
 
 source("./src/utils/read_iv_survey_info.R")
@@ -662,8 +663,499 @@ iv_veglagen <- dbGetQuery(con, "SELECT ivRecording.RecordingGivid
                           ;
                           ")
 
+### testen layer_coverage
+connection <- connect_inbo_dbase("D0010_00_Cydonia")
+
+#' coverage <- inboveg_coverage(con, survey_name = "Sigma_LSVI_2012")
+#' coverage <- inboveg_coverage(con, recording_type = c('Classic',
+#'     'Classic-emmer', 'Classic-ketting'), survey_name = c('Sigma_LSVI_2012'))
+#'  dbDisconnect(con)
+#' }
+
+inboveg_coverage <- function(connection,
+                             survey_name,
+                             recording_type,
+                             collect = FALSE,
+                             multiple = FALSE) {
+  
+  assert_that(inherits(connection, what = "Microsoft SQL Server"),
+              msg = "Not a connection object to database.")
+  
+  if (missing(survey_name) & !multiple) {
+    survey_name <- "%"
+  }
+  
+  if (missing(survey_name) & multiple) {
+    stop("Please provide one or more survey names to survey_name when multiple
+         = TRUE")
+  }
+  
+  if (!missing(survey_name)) {
+    if (!multiple) {
+      assert_that(is.character(survey_name))
+    } else {
+      assert_that(is.vector(survey_name, mode = "character"))
+    }
+  }
+  
+  if (missing(recording_type)) {
+    recording_type <- "%"
+  } else {
+    assert_that(is.character(recording_type))
+  }
+  
+  
+  sql_statement <- " SELECT ivRecording.RecordingGivid
+  , ivRecording.LocationCode
+  , ivRLLayer.LayerCode
+  , ivRLLayer.CoverCode
+  , ivRLIdentification.TaxonFullText AS OriginalName
+  , ivRLIdentification.PhenologyCode
+  , ivRLTaxonOccurrence.CoverageCode
+  , ftCoverValues.PctValue
+  , ftActionGroupList.Description
+  , ivRLIdentification.TaxonGroup
+  , ivRecording.VagueDateType
+  , ivRecording.VagueDateBegin
+  , ivRecording.VagueDateEnd
+  , ivRecTypeD.Name
+  FROM dbo.ivRecTypeD
+  INNER JOIN dbo.ivRecording ON ivRecording.RecTypeID = ivRecTypeD.ID
+  INNER JOIN dbo.ivSurvey ON ivSurvey.Id = ivRecording.SurveyId
+  LEFT JOIN dbo.ivRLLayer ON ivRLLayer.RecordingID = ivRecording.Id
+  LEFT JOIN dbo.ivRLTaxonOccurrence ON
+  ivRLTaxonOccurrence.LayerID = ivRLLayer.ID
+  LEFT JOIN dbo.ivRLIdentification ON 
+  ivRLIdentification.OccurrenceID = ivRLTaxonOccurrence.ID
+  LEFT JOIN dbo.ivRLResources ON
+  ivRLResources.ResourceGIVID = ivRLTaxonOccurrence.CoverageResource
+  LEFT JOIN D0013_00_Futon.dbo.ftActionGroupList ON
+  ftActionGroupList.ListName = ivRLResources.ListName
+  COLLATE Latin1_General_CI_AI
+  LEFT JOIN D0013_00_Futon.dbo.ftCoverValues ON
+  ftCoverValues.ListGIVID = ftActionGroupList.ListGIVID
+  COLLATE Latin1_General_CI_AI
+  AND ftCoverValues.Code = [ivRLTaxonOccurrence].[CoverageCode]
+  COLLATE Latin1_General_CI_AI
+  WHERE ivRLIdentification.Preferred = 1
+  AND ivRecTypeD.Name IN {recording_type}
+  AND ivSurvey.Name IN {survey_name}
+  ORDER BY ivRLLayer.LayerCode;
+  "
+sql_statement <- dbSendQuery(connection, sql_statement)
+  dbBind(sql_statement, survey = survey_name)
+  coverage <- dbFetch(sql_statement)
+  dbClearResult(sql_statement)
+  coverage
+}
 
 
-dbDisconnect(con)
+## voorbeeld
+coverage <- inboveg_coverage(connection, survey_name = "Sigma_LSVI_2012")
+coverage <- inboveg_coverage(con, recording_type = c('Classic', 
+    'Classic-emmer', 'Classic-ketting'), survey_name = c('Sigma_LSVI_2012'))
 
-rm(con)
+
+## werkt nog niet, maar bij vergelijken velden, geen nieuwigheden. eerder overbodig. 
+
+
+
+## recording extended
+connection <- connect_inbo_dbase(database_name = "D0010_00_Cydonia")
+inboveg_recordings <- function(connection,
+                               survey_name,
+                               collect = FALSE,
+                               multiple = FALSE) {
+  
+  assert_that(inherits(connection, what = "Microsoft SQL Server"),
+              msg = "Not a connection object to database.")
+  
+  if (missing(survey_name) & !multiple) {
+    survey_name <- "%"
+  }
+  
+  if (missing(survey_name) & multiple) {
+    stop("Please provide one or more survey names to survey_name when multiple
+         = TRUE")
+  }
+  
+  if (!missing(survey_name)) {
+    if (!multiple) {
+      assert_that(is.character(survey_name))
+    } else {
+      assert_that(is.vector(survey_name, mode = "character"))
+    }
+  }
+  
+  common_part <- "SELECT ivS.Name
+  , ivR.[RecordingGivid]
+  , ivR.UserReference
+  , ivR.LocationCode
+  , ivR.Latitude
+  , ivR.Longitude
+  , ivR.VagueDateType
+  , ivR.VagueDateBegin
+  , ivR.VagueDateEnd
+  , ivRL_Layer.LayerCode
+  , ivRL_Layer.CoverCode
+  , ivRL_Iden.TaxonFullText as OrignalName
+  , Synoniem.ScientificName
+  , ivRL_Iden.PhenologyCode
+  , ivRL_Taxon.CoverageCode
+  , ftCover.PctValue
+  , ftAGL.Description as RecordingScale
+  FROM  dbo.ivSurvey ivS
+  INNER JOIN [dbo].[ivRecording] ivR  ON ivR.SurveyId = ivS.Id
+  -- Deel met soortenlijst en synoniem
+  INNER JOIN [dbo].[ivRLLayer] ivRL_Layer on ivRL_Layer.RecordingID = ivR.Id
+  INNER JOIN [dbo].[ivRLTaxonOccurrence] ivRL_Taxon on
+  ivRL_Taxon.LayerID = ivRL_Layer.ID
+  INNER JOIN [dbo].[ivRLIdentification] ivRL_Iden on
+  ivRL_Iden.OccurrenceID = ivRL_Taxon.ID
+  LEFT JOIN (SELECT ftTaxon.TaxonName AS TaxonFullText
+  , COALESCE([GetSyn].TaxonName, ftTaxon.TaxonName) AS ScientificName
+  , COALESCE([GetSyn].TaxonGIVID, ftTaxon.TaxonGIVID) AS TAXON_LIST_ITEM_KEY
+  , COALESCE([GetSyn].TaxonQuickCode, ftTaxon.TaxonQuickCode) AS QuickCode
+  FROM [syno].[Futon_dbo_ftTaxon] ftTaxon
+  INNER JOIN [syno].[Futon_dbo_ftTaxonListItem] ftTLI ON
+  ftTLI.TaxonGIVID = ftTaxon.TaxonGIVID
+  LEFT JOIN (SELECT ftTaxonLI.TaxonListItemGIVID
+  , ftTaxon.TaxonGIVID
+  , ftTaxon.TaxonName
+  , ftTaxon.TaxonQuickCode
+  , ftAGL.ListName
+  , ftTaxonLI.PreferedListItemGIVID
+  FROM [syno].[Futon_dbo_ftActionGroupList] ftAGL
+  INNER JOIN [syno].[Futon_dbo_ftTaxonListItem] ftTaxonLI ON
+  ftTaxonLI.TaxonListGIVID = ftAGL.ListGIVID
+  LEFT JOIN [syno].[Futon_dbo_ftTaxon] ftTaxon ON
+  ftTaxon.TaxonGIVID = ftTaxonLI.TaxonGIVID
+  WHERE 1=1
+  AND ftAGL.ListName = 'INBO-2011 Sci'
+  ) GetSyn
+  ON GetSyn.TaxonListItemGIVID = ftTLI.PreferedListItemGIVID
+  WHERE ftTLI.TaxonListGIVID = 'TL2011092815101010'
+  ) Synoniem on
+  ivRL_Iden.TaxonFullText = Synoniem.TaxonFullText collate Latin1_General_CI_AI
+  -- Hier begint deel met bedekking
+  LEFT JOIN [dbo].[ivRLResources] ivRL_Res on
+  ivRL_Res.ResourceGIVID = ivRL_Taxon.CoverageResource
+  LEFT JOIN [syno].[Futon_dbo_ftActionGroupList] ftAGL on
+  ftAGL.ActionGroup = ivRL_Res.ActionGroup collate Latin1_General_CI_AI
+  AND ftAGL.ListName = ivRL_Res.ListName collate Latin1_General_CI_AI
+  LEFT JOIN [syno].[Futon_dbo_ftCoverValues] ftCover on
+  ftCover.ListGIVID = ftAGL.ListGIVID
+  AND ivRL_Taxon.CoverageCode = ftCover.Code collate Latin1_General_CI_AI
+  WHERE 1=1
+  AND ivRL_Iden.Preferred = 1"
+  
+  if (!multiple) {
+    sql_statement <- glue_sql(common_part,
+                              "AND ivS.Name LIKE {survey_name}",
+                              survey_name = survey_name,
+                              .con = connection)
+    
+  } else {
+    sql_statement <- glue_sql(common_part,
+                              "AND ivS.Name IN ({survey_name*})",
+                              survey_name = survey_name,
+                              .con = connection)
+  }
+  
+  query_result <- tbl(connection, sql(sql_statement))
+  
+  if (!isTRUE(collect)) {
+    return(query_result)
+  } else {
+    query_result <- collect(query_result)
+    return(query_result)
+  }
+  }
+
+
+recording_milkim <- inboveg_recordings(con, survey_name = "%MILKLIM%", collect = TRUE)
+                                 
+
+dbDisconnect(connection)
+
+rm(connection)
+
+
+#####################
+#' @importFrom glue glue_sql
+#' @importFrom DBI dbGetQuery
+#' @importFrom assertthat assert_that
+#' @importFrom dplyr collect tbl sql
+#' @importFrom inborutils connect_inbo_dbase
+#'
+#' @examples
+#' \dontrun{
+#' connection <- connect_inbo_dbase("D0010_00_Cydonia")
+#'
+#' # get the relevés from one survey and collect the data
+#' recording_heischraal2012 <- inboveg_recordings(connection, survey_name =
+#' "MILKLIM_Heischraal2012", collect = TRUE)
+#'
+#' # get all recordings from MILKLIM surveys (partial matching), don't collect
+#' recording_milkim <- inboveg_recordings(con, survey_name = "%MILKLIM%",
+#' collect = TRUE)
+#'
+#' # get recordings from several specific surveys
+#' recording_severalsurveys <- inboveg_recordings(connection, survey_name =
+#' c("MILKLIM_Heischraal2012", "NICHE Vlaanderen"), multiple = TRUE,
+#' collect = TRUE)
+#'
+#' # get all relevés of all surveys,  don't collect the data
+#' allrecordings <- inboveg_recordings(con)
+#'
+#' # Close the connection when done
+#' dbDisconnect(con)
+#' rm(con)
+#' }
+
+inboveg_recordings <- function(connection,
+                               survey_name,
+                               collect = FALSE,
+                               multiple = FALSE) {
+  
+  assert_that(inherits(connection, what = "Microsoft SQL Server"),
+              msg = "Not a connection object to database.")
+  
+  if (missing(survey_name) & !multiple) {
+    survey_name <- "%"
+  }
+  
+  if (missing(survey_name) & multiple) {
+    stop("Please provide one or more survey names to survey_name when multiple
+         = TRUE")
+  }
+  
+  if (!missing(survey_name)) {
+    if (!multiple) {
+      assert_that(is.character(survey_name))
+    } else {
+      assert_that(is.vector(survey_name, mode = "character"))
+    }
+  }
+  
+  common_part <- "SELECT ivS.Name
+  , ivR.[RecordingGivid]
+  , ivRL_Layer.LayerCode
+  , ivRL_Layer.CoverCode
+  , ivRL_Iden.TaxonFullText as OrignalName
+  , Synoniem.ScientificName
+  , ivRL_Iden.PhenologyCode
+  , ivRL_Taxon.CoverageCode
+  , ftCover.PctValue
+  , ftAGL.Description as RecordingScale
+  FROM  dbo.ivSurvey ivS
+  INNER JOIN [dbo].[ivRecording] ivR  ON ivR.SurveyId = ivS.Id
+  -- Deel met soortenlijst en synoniem
+  INNER JOIN [dbo].[ivRLLayer] ivRL_Layer on ivRL_Layer.RecordingID = ivR.Id
+  INNER JOIN [dbo].[ivRLTaxonOccurrence] ivRL_Taxon on
+  ivRL_Taxon.LayerID = ivRL_Layer.ID
+  INNER JOIN [dbo].[ivRLIdentification] ivRL_Iden on
+  ivRL_Iden.OccurrenceID = ivRL_Taxon.ID
+  LEFT JOIN (SELECT ftTaxon.TaxonName AS TaxonFullText
+  , COALESCE([GetSyn].TaxonName, ftTaxon.TaxonName) AS ScientificName
+  , COALESCE([GetSyn].TaxonGIVID, ftTaxon.TaxonGIVID) AS TAXON_LIST_ITEM_KEY
+  , COALESCE([GetSyn].TaxonQuickCode, ftTaxon.TaxonQuickCode) AS QuickCode
+  FROM [syno].[Futon_dbo_ftTaxon] ftTaxon
+  INNER JOIN [syno].[Futon_dbo_ftTaxonListItem] ftTLI ON
+  ftTLI.TaxonGIVID = ftTaxon.TaxonGIVID
+  LEFT JOIN (SELECT ftTaxonLI.TaxonListItemGIVID
+  , ftTaxon.TaxonGIVID
+  , ftTaxon.TaxonName
+  , ftTaxon.TaxonQuickCode
+  , ftAGL.ListName
+  , ftTaxonLI.PreferedListItemGIVID
+  FROM [syno].[Futon_dbo_ftActionGroupList] ftAGL
+  INNER JOIN [syno].[Futon_dbo_ftTaxonListItem] ftTaxonLI ON
+  ftTaxonLI.TaxonListGIVID = ftAGL.ListGIVID
+  LEFT JOIN [syno].[Futon_dbo_ftTaxon] ftTaxon ON
+  ftTaxon.TaxonGIVID = ftTaxonLI.TaxonGIVID
+  WHERE 1=1
+  AND ftAGL.ListName = 'INBO-2011 Sci'
+  ) GetSyn
+  ON GetSyn.TaxonListItemGIVID = ftTLI.PreferedListItemGIVID
+  WHERE ftTLI.TaxonListGIVID = 'TL2011092815101010'
+  ) Synoniem on
+  ivRL_Iden.TaxonFullText = Synoniem.TaxonFullText collate Latin1_General_CI_AI
+  -- Hier begint deel met bedekking
+  LEFT JOIN [dbo].[ivRLResources] ivRL_Res on
+  ivRL_Res.ResourceGIVID = ivRL_Taxon.CoverageResource
+  LEFT JOIN [syno].[Futon_dbo_ftActionGroupList] ftAGL on
+  ftAGL.ActionGroup = ivRL_Res.ActionGroup collate Latin1_General_CI_AI
+  AND ftAGL.ListName = ivRL_Res.ListName collate Latin1_General_CI_AI
+  LEFT JOIN [syno].[Futon_dbo_ftCoverValues] ftCover on
+  ftCover.ListGIVID = ftAGL.ListGIVID
+  AND ivRL_Taxon.CoverageCode = ftCover.Code collate Latin1_General_CI_AI
+  WHERE 1=1
+  AND ivRL_Iden.Preferred = 1"
+
+  if (!multiple) {
+    sql_statement <- glue_sql(common_part,
+                              "AND ivS.Name LIKE {survey_name}",
+                              survey_name = survey_name,
+                              .con = connection)
+
+  } else {
+    sql_statement <- glue_sql(common_part,
+                              "AND ivS.Name IN ({survey_name*})",
+                              survey_name = survey_name,
+                              .con = connection)
+  }
+
+  query_result <- tbl(connection, sql(sql_statement))
+
+  if (!isTRUE(collect)) {
+    return(query_result)
+  } else {
+    query_result <- collect(query_result)
+    return(query_result)
+  }
+}
+## nu met extended en con vervangen door connection 
+#' @importFrom glue glue_sql
+#' @importFrom DBI dbGetQuery
+#' @importFrom assertthat assert_that
+#' @importFrom dplyr collect tbl sql
+#' @importFrom inborutils connect_inbo_dbase
+#'
+#' @examples
+#' \dontrun{
+#' connection <- connect_inbo_dbase("D0010_00_Cydonia")
+#'
+#' # get the relevés from one survey and collect the data
+#' recording_heischraal2012 <- inboveg_recordings_extended(connection, survey_name =
+#' "MILKLIM_Heischraal2012", collect = TRUE)
+#'
+#' # get all recordings from MILKLIM surveys (partial matching), don't collect
+#' recording_milkim <- inboveg_recordings_extended(connection, survey_name = "%MILKLIM%",
+#' collect = TRUE)
+#'
+#' # get recordings from several specific surveys
+#' recording_severalsurveys <- inboveg_recordings_extended(connection, survey_name =
+#' c("MILKLIM_Heischraal2012", "NICHE Vlaanderen"), multiple = TRUE,
+#' collect = TRUE)
+#'
+#' # get all relevés of all surveys,  don't collect the data
+#' allrecordings <- inboveg_recordings_extended(connection)
+#'
+#' Close the connection when done
+#' dbDisconnect(connection)
+#' rm(connection)
+#' }
+
+inboveg_recordings_extended <- function(connection,
+                               survey_name,
+                               collect = FALSE,
+                               multiple = FALSE) {
+  
+  assert_that(inherits(connection, what = "Microsoft SQL Server"),
+              msg = "Not a connection object to database.")
+  
+  if (missing(survey_name) & !multiple) {
+    survey_name <- "%"
+  }
+  
+  if (missing(survey_name) & multiple) {
+    stop("Please provide one or more survey names to survey_name when multiple
+         = TRUE")
+  }
+  
+  if (!missing(survey_name)) {
+    if (!multiple) {
+      assert_that(is.character(survey_name))
+    } else {
+      assert_that(is.vector(survey_name, mode = "character"))
+    }
+  }
+  
+  common_part <- "SELECT ivS.Name
+  , ivR.[RecordingGivid]
+  , ivR.UserReference
+  , ivR.LocationCode
+  , ivR.Latitude
+  , ivR.Longitude
+  , ivR.VagueDateType
+  , ivR.VagueDateBegin
+  , ivR.VagueDateEnd
+  , ivRL_Layer.LayerCode
+  , ivRL_Layer.CoverCode
+  , ivRL_Iden.TaxonFullText as OrignalName
+  , Synoniem.ScientificName
+  , ivRL_Iden.PhenologyCode
+  , ivRL_Taxon.CoverageCode
+  , ftCover.PctValue
+  , ftAGL.Description as RecordingScale
+  FROM  dbo.ivSurvey ivS
+  INNER JOIN [dbo].[ivRecording] ivR  ON ivR.SurveyId = ivS.Id
+  -- Deel met soortenlijst en synoniem
+  INNER JOIN [dbo].[ivRLLayer] ivRL_Layer on ivRL_Layer.RecordingID = ivR.Id
+  INNER JOIN [dbo].[ivRLTaxonOccurrence] ivRL_Taxon on
+  ivRL_Taxon.LayerID = ivRL_Layer.ID
+  INNER JOIN [dbo].[ivRLIdentification] ivRL_Iden on
+  ivRL_Iden.OccurrenceID = ivRL_Taxon.ID
+  LEFT JOIN (SELECT ftTaxon.TaxonName AS TaxonFullText
+  , COALESCE([GetSyn].TaxonName, ftTaxon.TaxonName) AS ScientificName
+  , COALESCE([GetSyn].TaxonGIVID, ftTaxon.TaxonGIVID) AS TAXON_LIST_ITEM_KEY
+  , COALESCE([GetSyn].TaxonQuickCode, ftTaxon.TaxonQuickCode) AS QuickCode
+  FROM [syno].[Futon_dbo_ftTaxon] ftTaxon
+  INNER JOIN [syno].[Futon_dbo_ftTaxonListItem] ftTLI ON
+  ftTLI.TaxonGIVID = ftTaxon.TaxonGIVID
+  LEFT JOIN (SELECT ftTaxonLI.TaxonListItemGIVID
+  , ftTaxon.TaxonGIVID
+  , ftTaxon.TaxonName
+  , ftTaxon.TaxonQuickCode
+  , ftAGL.ListName
+  , ftTaxonLI.PreferedListItemGIVID
+  FROM [syno].[Futon_dbo_ftActionGroupList] ftAGL
+  INNER JOIN [syno].[Futon_dbo_ftTaxonListItem] ftTaxonLI ON
+  ftTaxonLI.TaxonListGIVID = ftAGL.ListGIVID
+  LEFT JOIN [syno].[Futon_dbo_ftTaxon] ftTaxon ON
+  ftTaxon.TaxonGIVID = ftTaxonLI.TaxonGIVID
+  WHERE 1=1
+  AND ftAGL.ListName = 'INBO-2011 Sci'
+  ) GetSyn
+  ON GetSyn.TaxonListItemGIVID = ftTLI.PreferedListItemGIVID
+  WHERE ftTLI.TaxonListGIVID = 'TL2011092815101010'
+  ) Synoniem on
+  ivRL_Iden.TaxonFullText = Synoniem.TaxonFullText collate Latin1_General_CI_AI
+  -- Hier begint deel met bedekking
+  LEFT JOIN [dbo].[ivRLResources] ivRL_Res on
+  ivRL_Res.ResourceGIVID = ivRL_Taxon.CoverageResource
+  LEFT JOIN [syno].[Futon_dbo_ftActionGroupList] ftAGL on
+  ftAGL.ActionGroup = ivRL_Res.ActionGroup collate Latin1_General_CI_AI
+  AND ftAGL.ListName = ivRL_Res.ListName collate Latin1_General_CI_AI
+  LEFT JOIN [syno].[Futon_dbo_ftCoverValues] ftCover on
+  ftCover.ListGIVID = ftAGL.ListGIVID
+  AND ivRL_Taxon.CoverageCode = ftCover.Code collate Latin1_General_CI_AI
+  WHERE 1=1
+  AND ivRL_Iden.Preferred = 1"
+  
+  if (!multiple) {
+    sql_statement <- glue_sql(common_part,
+                              "AND ivS.Name LIKE {survey_name}",
+                              survey_name = survey_name,
+                              .con = connection)
+    
+  } else {
+    sql_statement <- glue_sql(common_part,
+                              "AND ivS.Name IN ({survey_name*})",
+                              survey_name = survey_name,
+                              .con = connection)
+  }
+  
+  query_result <- tbl(connection, sql(sql_statement))
+  
+  if (!isTRUE(collect)) {
+    return(query_result)
+  } else {
+    query_result <- collect(query_result)
+    return(query_result)
+  }
+  }
+
+
+
