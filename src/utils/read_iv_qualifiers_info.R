@@ -22,31 +22,98 @@ x <- 10:1
 y <- 1:10
 order_by(x, cumsum(y))
 
-
 ?glue_sql
 
+tbl_ftQV      <- tbl(con_futon, from = "ftQualifierValues")
+tbl_ftDQV     <- tbl(con_futon, from = "ftDQualifierValues")
+tbl_ftAbioV   <- tbl(con_futon, from = "ftAbiotiekValues")
+tbl_ftBWKV    <- tbl(con_futon, from = "ftBWKValues")
+tbl_ftCoverV  <- tbl(con_futon, from = "ftCoverValues")
+tbl_ftFenoV   <- tbl(con_futon, from = "ftFenoValues")
+tbl_ftGebiedV <- tbl(con_futon, from = "ftgebiedValues")
+tbl_ftGHCV    <- tbl(con_futon, from = "ftGHCValues")
+tbl_ftLayerV  <- tbl(con_futon, from = "ftLayerValues")
+tbl_ftLFV     <- tbl(con_futon, from = "ftLFValues")
+tbl_ftMngmtV  <- tbl(con_futon, from = "ftMngmtValues")
+tbl_ftPatchV  <- tbl(con_futon, from = "ftPatchValues")
+tbl_ftN2kV    <- tbl(con_futon, from = "ftN2kValues")
+tbl_ftSociaV  <- tbl(con_futon, from = "ftSociaValues")
+tbl_ftSoilV   <- tbl(con_futon, from = "ftSoilValues")
+tbl_ftVitaV   <- tbl(con_futon, from = "ftVitaValues")
 
-tbl_ftQValues <- tbl(con_futon, from = "ftQualifierValues")
 
-  ftQValues_union <- tbl_ftQValues %>% 
-    select(Code, Description, ListGIVID) %>% 
-    order_by(ListGIVID) %>% 
+ftValues_union <- 
+    union(tbl_ftQV
+      , tbl_ftDQV
+      , tbl_ftAbioV
+      , tbl_ftBWKV
+      , tbl_ftCoverV
+      , tbl_ftFenoV
+      , tbl_ftGebiedV
+      , tbl_ftGHCV
+      , tbl_ftLayerV
+      , tbl_ftLFV
+      , tbl_ftMngmtV
+      , tbl_ftPatchV
+      , tbl_ftN2kV
+      , tbl_ftSociaV
+      , tbl_ftSoilV
+      , tbl_ftVitaV) %>% 
+    select(Code, Description, ListGIVID)
 
-futon_List <- union(ftQualifierValues, ftDQualifierValues, ftAbiotiekValues )    
-    
-    
-    
-UnionActionGroups <- 
-dbGetQuery(con_futon, glue_sql("SELECT 
-      ftQValue.Code
-    , ftQValue.Description
-    , ftQValue.ListGIVID
-FROM tbl_ftQValues ftQValue
-ORDER BY  ftQValue.ListGIVID
-        , ftQValue.Code
-UNION ftDQualifierValues"))
+## QUERY01 ACValues
+qry_01ACvalues <- glue_sql(con, "SELECT 
+                           ivRLResources.ResourceGIVID
+                           , ivRLResources.ActionGroup
+                           , ivRLResources.ListName
+                           , ftActionGroupList.ListGIVID
+                           , ftValues_union.Code
+                           , ftValues_union.Description
+                           FROM (ivRLResources 
+                           LEFT JOIN ftActionGroupList ON (ivRLResources.ListName = ftActionGroupList.ListName) 
+                           AND (ivRLResources.ActionGroup = ftActionGroupList.ActionGroup)) 
+                           LEFT JOIN ftValues_union ON ftActionGroupList.ListGIVID = ftValues_union.ListGIVID
+                           ORDER BY ftActionGroupList.ListGIVID, ftValues_union.Code;"
+                           , .con = con)
 
-## uit prd-access van luc VH
+## QUERY02 Alles verbinden MSQualifiers per opname
+testje <- glue_sql(con , 
+                   "SELECT 
+       ivRecording.RecordingGivid
+     , ivRecording.UserReference
+     , ivRecording.Observer
+     , ivRLQualifier.QualifierType
+     , ivRLQualifier.QualifierCode
+     , qry_01ACvalues.oms ## dit komt uit query01
+     , ivRLQualifier_1.QualifierCode
+     , qry_01ACvalues_1.oms  ## dit komt uit query01
+     , ivRLQualifier_2.QualifierCode
+     , qry_01ACvalues_2.oms  ## dit komt uit query01
+     , ivRLQualifier.Elucidation
+     , ivRLQualifier.NotSure
+     , ivRLQualifier.ParentID
+FROM (((((ivRecording 
+ LEFT JOIN ivRLQualifier ON ivRecording.Id = ivRLQualifier.RecordingID) 
+ LEFT JOIN ivRLQualifier AS ivRLQualifier_1 ON 
+                   ivRLQualifier.ID = ivRLQualifier_1.ParentID) 
+ LEFT JOIN ivRLQualifier AS ivRLQualifier_2 ON 
+                   ivRLQualifier_1.ID = ivRLQualifier_2.ParentID) 
+ LEFT JOIN qry_01ACvalues ON (ivRLQualifier.QualifierCode = qry_01ACvalues.Code) 
+      AND (ivRLQualifier.QualifierResource = qry_01ACvalues.ResourceGIVID)) 
+ LEFT JOIN qry_01ACvalues AS qry_01ACvalues_1 ON 
+                   (ivRLQualifier_1.QualifierCode = qry_01ACvalues_1.Code) 
+      AND (ivRLQualifier_1.QualifierResource = qry_01ACvalues_1.ResourceGIVID)) 
+ LEFT JOIN qry_01ACvalues AS qry_01ACvalues_2 ON 
+                   (ivRLQualifier_2.QualifierCode = qry_01ACvalues_2.Code) 
+      AND (ivRLQualifier_2.QualifierResource = qry_01ACvalues_2.ResourceGIVID)
+ WHERE (((ivRLQualifier.ParentID) Is Null))
+ ORDER BY ivRecording.UserReference, ivRLQualifier.QualifierType, ivRLQualifier.QualifierCode;"
+                   ,.con = con_futon)
+
+
+################### TESTEN
+
+## uit prd-access van luc VH - Samenvoegquery
 
 prd-query <- ("SELECT 
       ftQValue.Code
@@ -159,8 +226,7 @@ UNION (SELECT
       FROM D0013_00_Futon.dbo.ftVitaValues ftVitaV
       ORDER BY ftVitaV.ListGIVID
              , ftVitaV.Code)")
-)
-              
+
 ## functie opbouwen 
 
 inboveg_qualifiers <- function(connection,
@@ -228,11 +294,44 @@ inboveg_qualifiers <- function(connection,
     query_result <- collect(query_result)
     return(query_result)
   }
-  }
 
-## QUERY01 ACValues
-SELECT ivRLResources.ResourceGIVID, ivRLResources.ActionGroup, ivRLResources.ListName, ftActionGroupList.ListGIVID, qry_00ActionGroups.Code, qry_00ActionGroups.oms
-FROM (ivRLResources LEFT JOIN ftActionGroupList ON (ivRLResources.ListName = ftActionGroupList.ListName) AND (ivRLResources.ActionGroup = ftActionGroupList.ActionGroup)) LEFT JOIN qry_00ActionGroups ON ftActionGroupList.ListGIVID = qry_00ActionGroups.ListGIVID
-  ORDER BY ftActionGroupList.ListGIVID, qry_00ActionGroups.Code;
+
+## Query03 Alles verbinden MSQualifiers per opname
   
-## Query03 Alles verbinden 
+testje <- glue_sql(con , "SELECT 
+  ivRecording.RecordingGivid
+, ivRecording.UserReference
+, ivRecording.Observer
+, ivRLQualifier.QualifierType
+, ivRLQualifier.QualifierCode
+, qry_01ACvalues.oms ## dit komt uit query01
+, ivRLQualifier_1.QualifierCode
+, qry_01ACvalues_1.oms  ## dit komt uit query01
+, ivRLQualifier_2.QualifierCode
+, qry_01ACvalues_2.oms  ## dit komt uit query01
+, ivRLQualifier.Elucidation
+, ivRLQualifier.NotSure
+, ivRLQualifier.ParentID
+FROM (((((ivRecording 
+LEFT JOIN ivRLQualifier ON ivRecording.Id = ivRLQualifier.RecordingID) 
+LEFT JOIN ivRLQualifier AS ivRLQualifier_1 ON 
+          ivRLQualifier.ID = ivRLQualifier_1.ParentID) 
+LEFT JOIN ivRLQualifier AS ivRLQualifier_2 ON 
+          ivRLQualifier_1.ID = ivRLQualifier_2.ParentID) 
+LEFT JOIN qry_01ACvalues ON (ivRLQualifier.QualifierCode = qry_01ACvalues.Code) 
+          AND (ivRLQualifier.QualifierResource = qry_01ACvalues.ResourceGIVID)) 
+LEFT JOIN qry_01ACvalues AS qry_01ACvalues_1 ON 
+          (ivRLQualifier_1.QualifierCode = qry_01ACvalues_1.Code) 
+          AND (ivRLQualifier_1.QualifierResource = qry_01ACvalues_1.ResourceGIVID)) 
+LEFT JOIN qry_01ACvalues AS qry_01ACvalues_2 ON 
+          (ivRLQualifier_2.QualifierCode = qry_01ACvalues_2.Code) 
+          AND (ivRLQualifier_2.QualifierResource = qry_01ACvalues_2.ResourceGIVID)
+WHERE (((ivRLQualifier.ParentID) Is Null))
+ORDER BY ivRecording.UserReference, ivRLQualifier.QualifierType, ivRLQualifier.QualifierCode;"
+  ,.con = con)
+  
+  
+  
+  
+  
+  
