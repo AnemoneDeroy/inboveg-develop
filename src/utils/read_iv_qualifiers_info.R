@@ -61,24 +61,42 @@ ftValues_union <-
       , tbl_ftVitaV) %>% 
     select(Code, Description, ListGIVID)
 
+## Lukt dit ook zonder eerst alle tbl's in te laden? NOPE
+ftValues_union <- 
+  union(ftQualifierValues
+        , ftDQualifierValues
+        , ftAbiotiekValues
+        , ftBWKValues
+        , ftCoverValues
+        , ftFenoValues) %>% 
+  select(Code, Description, ListGIVID)
+
+
 ## QUERY01 ACValues
-qry_01ACvalues <- glue_sql(con, "SELECT 
-                           ivRLResources.ResourceGIVID
-                           , ivRLResources.ActionGroup
-                           , ivRLResources.ListName
-                           , ftActionGroupList.ListGIVID
-                           , ftValues_union.Code
-                           , ftValues_union.Description
-                           FROM (ivRLResources 
-                           LEFT JOIN ftActionGroupList ON (ivRLResources.ListName = ftActionGroupList.ListName) 
-                           AND (ivRLResources.ActionGroup = ftActionGroupList.ActionGroup)) 
-                           LEFT JOIN ftValues_union ON ftActionGroupList.ListGIVID = ftValues_union.ListGIVID
-                           ORDER BY ftActionGroupList.ListGIVID, ftValues_union.Code;"
-                           , .con = con)
+qry_01ACvalues <- dbGetQuery(con, glue_sql(
+  "SELECT 
+       ivRLResources.ResourceGIVID
+     , ivRLResources.ActionGroup
+     , ivRLResources.ListName
+     , D0013_00_Futon.dbo.ftActionGroupList.ListGIVID
+     , ftValues_union.Code
+     , ftValues_union.Description
+  FROM (ivRLResources 
+  LEFT JOIN D0013_00_Futon.dbo.ftActionGroupList ON (ivRLResources.ListName = D0013_00_Futon.dbo.ftActionGroupList.ListName) 
+  AND (ivRLResources.ActionGroup = D0013_00_Futon.dbo.ftActionGroupList.ActionGroup)) 
+  LEFT JOIN ftValues_union ON D0013_00_Futon.dbo.ftActionGroupList.ListGIVID = ftValues_union.ListGIVID
+  ORDER BY D0013_00_Futon.dbo.ftActionGroupList.ListGIVID, ftValues_union.Code;"
+                       , .con = con))
+
+query <- dbSendQuery(con, qry_01ACvalues)
+dbBind(qry_01ACvalues)
+synonym_list <- dbFetch(qry_01ACvalues)
+
+
 
 ## QUERY02 Alles verbinden MSQualifiers per opname
-testje <- glue_sql(con , 
-                   "SELECT 
+testje <- dbGetQuery(con,glue_sql(
+  "SELECT 
        ivRecording.RecordingGivid
      , ivRecording.UserReference
      , ivRecording.Observer
@@ -92,23 +110,23 @@ testje <- glue_sql(con ,
      , ivRLQualifier.Elucidation
      , ivRLQualifier.NotSure
      , ivRLQualifier.ParentID
-FROM (((((ivRecording 
- LEFT JOIN ivRLQualifier ON ivRecording.Id = ivRLQualifier.RecordingID) 
- LEFT JOIN ivRLQualifier AS ivRLQualifier_1 ON 
+  FROM (((((ivRecording 
+  LEFT JOIN ivRLQualifier ON ivRecording.Id = ivRLQualifier.RecordingID) 
+  LEFT JOIN ivRLQualifier AS ivRLQualifier_1 ON 
                    ivRLQualifier.ID = ivRLQualifier_1.ParentID) 
- LEFT JOIN ivRLQualifier AS ivRLQualifier_2 ON 
+  LEFT JOIN ivRLQualifier AS ivRLQualifier_2 ON 
                    ivRLQualifier_1.ID = ivRLQualifier_2.ParentID) 
- LEFT JOIN qry_01ACvalues ON (ivRLQualifier.QualifierCode = qry_01ACvalues.Code) 
+  LEFT JOIN qry_01ACvalues ON (ivRLQualifier.QualifierCode = qry_01ACvalues.Code) 
       AND (ivRLQualifier.QualifierResource = qry_01ACvalues.ResourceGIVID)) 
- LEFT JOIN qry_01ACvalues AS qry_01ACvalues_1 ON 
+  LEFT JOIN qry_01ACvalues AS qry_01ACvalues_1 ON 
                    (ivRLQualifier_1.QualifierCode = qry_01ACvalues_1.Code) 
       AND (ivRLQualifier_1.QualifierResource = qry_01ACvalues_1.ResourceGIVID)) 
- LEFT JOIN qry_01ACvalues AS qry_01ACvalues_2 ON 
+  LEFT JOIN qry_01ACvalues AS qry_01ACvalues_2 ON 
                    (ivRLQualifier_2.QualifierCode = qry_01ACvalues_2.Code) 
       AND (ivRLQualifier_2.QualifierResource = qry_01ACvalues_2.ResourceGIVID)
- WHERE (((ivRLQualifier.ParentID) Is Null))
- ORDER BY ivRecording.UserReference, ivRLQualifier.QualifierType, ivRLQualifier.QualifierCode;"
-                   ,.con = con_futon)
+  WHERE (((ivRLQualifier.ParentID) Is Null))
+  ORDER BY ivRecording.UserReference, ivRLQualifier.QualifierType, ivRLQualifier.QualifierCode;"
+                   ,.con = con))
 
 
 ################### TESTEN
