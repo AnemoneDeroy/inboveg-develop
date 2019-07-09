@@ -12,7 +12,7 @@ con_futon <- connect_inbo_dbase("D0013_00_Futon")
 ## 3 aparte queries, achteraf mergen
 
 
-## QUERY00 - UNION
+## QUERY00 - UNION - WERKT
 (x <- c(sort(sample(1:20, 9)), NA))
 (y <- c(sort(sample(3:23, 7)), NA))
 union(x, y)
@@ -61,16 +61,11 @@ ftValues_union <-
       , tbl_ftVitaV) %>% 
     select(Code, Description, ListGIVID)
 
-## Lukt dit ook zonder eerst alle tbl's in te laden? NOPE
-ftValues_union <- 
-  union(ftQualifierValues
-        , ftDQualifierValues
-        , ftAbiotiekValues
-        , ftBWKValues
-        , ftCoverValues
-        , ftFenoValues) %>% 
-  select(Code, Description, ListGIVID)
+## RESULT:  
+# Source:   lazy query [?? x 3]
+# Database: Microsoft SQL Server 13.00.5216[INBO\els_debie@INBO-SQL07-PRD\LIVE/D0013_00_Futon]
 
+## Kortere manier dan via union en alle tabellen apart in te lezen?
 
 ## QUERY01 ACValues
 qry_01ACvalues <- dbGetQuery(con, glue_sql(
@@ -78,19 +73,19 @@ qry_01ACvalues <- dbGetQuery(con, glue_sql(
        ivRLResources.ResourceGIVID
      , ivRLResources.ActionGroup
      , ivRLResources.ListName
-     , D0013_00_Futon.dbo.ftActionGroupList.ListGIVID
      , ftValues_union.Code
      , ftValues_union.Description
-  FROM (ivRLResources 
-  LEFT JOIN D0013_00_Futon.dbo.ftActionGroupList ON (ivRLResources.ListName = D0013_00_Futon.dbo.ftActionGroupList.ListName) 
-  AND (ivRLResources.ActionGroup = D0013_00_Futon.dbo.ftActionGroupList.ActionGroup)) 
-  LEFT JOIN ftValues_union ON D0013_00_Futon.dbo.ftActionGroupList.ListGIVID = ftValues_union.ListGIVID
-  ORDER BY D0013_00_Futon.dbo.ftActionGroupList.ListGIVID, ftValues_union.Code;"
-                       , .con = con))
+  FROM ivRLResources 
+  LEFT JOIN D0013_00_Futon.dbo.ftActionGroupList ON ivRLResources.ListName = D0013_00_Futon.dbo.ftActionGroupList.ListName
+  AND ivRLResources.ActionGroup = D0013_00_Futon.dbo.ftActionGroupList.ActionGroup
+  LEFT JOIN ftValues_union ON D0013_00_Futon.dbo.ftActionGroupList.ListGIVID = ftValues_union.ListGIVID"
+  ))
 
-query <- dbSendQuery(con, qry_01ACvalues)
-dbBind(qry_01ACvalues)
-synonym_list <- dbFetch(qry_01ACvalues)
+dbBind(qry_01ACvalues())
+
+#" hoe data opvragen? zonder functie met sql en niet met dplyr
+
+
 
 
 
@@ -245,6 +240,20 @@ UNION (SELECT
       ORDER BY ftVitaV.ListGIVID
              , ftVitaV.Code)")
 
+## Lukt dit ook zonder eerst alle tbl's in te laden? NOPE
+ftValues_union <- 
+  union(ftQualifierValues
+        , ftDQualifierValues
+        , ftAbiotiekValues
+        , ftBWKValues
+        , ftCoverValues
+        , ftFenoValues) %>% 
+  select(Code, Description, ListGIVID)
+
+
+
+
+
 ## functie opbouwen 
 
 inboveg_qualifiers <- function(connection,
@@ -314,8 +323,8 @@ inboveg_qualifiers <- function(connection,
   }
 
 
-## Query03 Alles verbinden MSQualifiers per opname
-  
+## Query03 Origineel uit mSQLsms
+
 testje <- glue_sql(con , "SELECT 
   ivRecording.RecordingGivid
 , ivRecording.UserReference
