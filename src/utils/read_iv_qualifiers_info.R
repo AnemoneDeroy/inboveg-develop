@@ -59,16 +59,19 @@ ftValues_union <-
       , tbl_ftSociaV
       , tbl_ftSoilV
       , tbl_ftVitaV) %>% 
-    select(Code, Description, ListGIVID)
+    select(Code, Description, ListGIVID) %>% 
+  collect()
+
 
 ## RESULT:  
 # Source:   lazy query [?? x 3]
 # Database: Microsoft SQL Server 13.00.5216[INBO\els_debie@INBO-SQL07-PRD\LIVE/D0013_00_Futon]
+# via collect () wordt ftValues_Uinon een tibble ...  A tibble: 2,247 x 3
 
 ## Kortere manier dan via union en alle tabellen apart in te lezen?
 
 ## QUERY01 ACValues
-qry_01ACvalues <- dbGetQuery(con, glue_sql(
+qry_01ACvalues <- dbGetQuery(con,
   "SELECT 
        ivRLResources.ResourceGIVID
      , ivRLResources.ActionGroup
@@ -76,20 +79,45 @@ qry_01ACvalues <- dbGetQuery(con, glue_sql(
      , ftValues_union.Code
      , ftValues_union.Description
   FROM ivRLResources 
-  LEFT JOIN D0013_00_Futon.dbo.ftActionGroupList ON ivRLResources.ListName = D0013_00_Futon.dbo.ftActionGroupList.ListName
-  AND ivRLResources.ActionGroup = D0013_00_Futon.dbo.ftActionGroupList.ActionGroup
-  LEFT JOIN ftValues_union ON D0013_00_Futon.dbo.ftActionGroupList.ListGIVID = ftValues_union.ListGIVID"
-  ))
+  LEFT JOIN D0013_00_Futon.dbo.ftActionGroupList ON ivRLResources.ListName = D0013_00_Futon.dbo.ftActionGroupList.ListName collate Latin1_General_CI_AI
+  AND ivRLResources.ActionGroup = D0013_00_Futon.dbo.ftActionGroupList.ActionGroup collate Latin1_General_CI_AI
+  LEFT JOIN ftValues_union ON D0013_00_Futon.dbo.ftActionGroupList.ListGIVID = ftValues_union.ListGIVID
+  WHERE ivRLResources.ResourceGIVID LIKE 'RS2014091211335947' ")
 
-dbBind(qry_01ACvalues())
+## QUERY01 ACValues - CONNECTIE Futon
+qry_01ACvalues <- dbGetQuery(con_futon,
+                             "SELECT 
+       D0010_00_Cydonia.dbo.ivRLResources.ResourceGIVID
+     , D0010_00_Cydonia.dbo.ivRLResources.ActionGroup
+     , D0010_00_Cydonia.dbo.ivRLResources.ListName
+     , ftValues_union.Code
+     , ftValues_union.Description
+  FROM D0010_00_Cydonia.dbo.ivRLResources 
+  LEFT JOIN ftActionGroupList ON D0010_00_Cydonia.dbo.ivRLResources.ListName = ftActionGroupList.ListName collate Latin1_General_CI_AI
+  AND D0010_00_Cydonia.dbo.ivRLResources.ActionGroup = ftActionGroupList.ActionGroup collate Latin1_General_CI_AI
+  LEFT JOIN ftValues_union ON ftActionGroupList.ListGIVID = ftValues_union.ListGIVID
+  WHERE D0010_00_Cydonia.dbo.ivRLResources.ResourceGIVID LIKE 'RS2014091211335947' ")
 
-#" hoe data opvragen? zonder functie met sql en niet met dplyr
+## hoe kan ik verwijzen naar die eerste tibble? want daar geeft ie altijd foutmelding? 
+# Error: <SQL> 'SELECT 
+#        D0010_00_Cydonia.dbo.ivRLResources.ResourceGIVID
+#      , D0010_00_Cydonia.dbo.ivRLResources.ActionGroup
+#      , D0010_00_Cydonia.dbo.ivRLResources.ListName
+#      , ftValues_union.Code
+#      , ftValues_union.Description
+#   FROM D0010_00_Cydonia.dbo.ivRLResources 
+#   LEFT JOIN ftActionGroupList ON D0010_00_Cydonia.dbo.ivRLResources.ListName = ftActionGroupList.ListName collate Latin1_General_CI_AI
+#   AND D0010_00_Cydonia.dbo.ivRLResources.ActionGroup = ftActionGroupList.ActionGroup collate Latin1_General_CI_AI
+#   LEFT JOIN ftValues_union ON ftActionGroupList.ListGIVID = ftValues_union.ListGIVID
+#   WHERE ivRLResources.ResourceGIVID LIKE 'RS2014091211335947' '
+# nanodbc/nanodbc.cpp:1587: 42S02: [Microsoft][ODBC SQL Server Driver][SQL Server]Invalid object name 'ftValues_union'. 
 
 
 
 
 
 ## QUERY02 Alles verbinden MSQualifiers per opname
+# als QUERY00 en 01 werken ... 
 testje <- dbGetQuery(con,glue_sql(
   "SELECT 
        ivRecording.RecordingGivid
