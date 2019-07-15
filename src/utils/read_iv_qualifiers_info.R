@@ -60,7 +60,8 @@ ftValues_union <-
       , tbl_ftSoilV
       , tbl_ftVitaV) %>% 
     select(Code, Description, ListGIVID) %>% 
-  collect()
+    #collect()
+    show_query()
 
 
 ## RESULT:  
@@ -69,6 +70,46 @@ ftValues_union <-
 # via collect () wordt ftValues_Uinon een tibble ...  A tibble: 2,247 x 3
 
 ## Kortere manier dan via union en alle tabellen apart in te lezen?
+
+ftValues_union %>% show_query() #in plaats van collect()
+# <SQL>
+#   SELECT "Code", "Description", "ListGIVID"
+# FROM ((SELECT "ftQualifierValuesId", "ListGIVID", "Code", "Description", "Elucidation", "SortCode", NULL AS "ftDQualifierValuesId", NULL AS "DrillDownGIVID"
+#        FROM "ftQualifierValues")
+#       UNION
+#       (SELECT NULL AS "ftQualifierValuesId", "ListGIVID", "Code", "Description", "Elucidation", "SortCode", "ftDQualifierValuesId", "DrillDownGIVID"
+#         FROM "ftDQualifierValues")) "dbplyr_005"
+# 
+
+## Op basis van show_query nu de prd-sql omzetten... 
+prd_query <- ("
+  SELECT 
+        ftQValue.Code
+      , ftQValue.Description
+      , ftQValue.ListGIVID
+  FROM ((SELECT 
+              ftQualifierValuesId
+              , ListGIVID
+              , Code
+              , Description
+              , Elucidation
+              , SortCode
+              , NULL AS ftDQualifierValuesId
+              , NULL AS DrillDownGIVID
+        FROM ftQualifierValues ftQValue)
+UNION(SELECT
+            NULL AS ftQualifierValuesId
+            , ListGIVID
+            , Code
+            , Description
+            , Elucidation
+            , SortCode
+            , ftDQualifierValuesId
+            , DrillDownGIVID
+      FROM ftDQualifierValues ftDQV))")
+
+# Lukt niet ... 
+
 
 ## QUERY01 ACValues
 qry_01ACvalues <- dbGetQuery(con,
@@ -82,7 +123,11 @@ qry_01ACvalues <- dbGetQuery(con,
   LEFT JOIN D0013_00_Futon.dbo.ftActionGroupList ON ivRLResources.ListName = D0013_00_Futon.dbo.ftActionGroupList.ListName collate Latin1_General_CI_AI
   AND ivRLResources.ActionGroup = D0013_00_Futon.dbo.ftActionGroupList.ActionGroup collate Latin1_General_CI_AI
   LEFT JOIN ftValues_union ON D0013_00_Futon.dbo.ftActionGroupList.ListGIVID = ftValues_union.ListGIVID
-  WHERE ivRLResources.ResourceGIVID LIKE 'RS2014091211335947' ")
+    WHERE ivRLResources.ResourceGIVID LIKE 'RS2014091211335947' ")
+  ## WHERE ftValues_union.ListGIVID LIKE 'FT2010120311482606' ")
+
+head(qry_01ACvalues) %>% knitr::kable()
+
 
 ## QUERY01 ACValues - CONNECTIE Futon
 qry_01ACvalues <- dbGetQuery(con_futon,
