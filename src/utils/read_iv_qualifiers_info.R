@@ -82,31 +82,31 @@ ftValues_union %>% show_query() #in plaats van collect()
 # 
 
 ## Op basis van show_query nu de prd-sql omzetten... 
-prd_query <- ("
-  SELECT 
+prd_query <- dbGetQuery(con_futon, "sELECT 
         ftQValue.Code
       , ftQValue.Description
       , ftQValue.ListGIVID
   FROM ((SELECT 
-              ftQualifierValuesId
-              , ListGIVID
-              , Code
-              , Description
-              , Elucidation
-              , SortCode
+              ftQValue.ftQualifierValuesId
+              , ftQValue.ListGIVID
+              , ftQValue.Code
+              , ftQValue.Description
+              , ftQValue.Elucidation
+              , ftQValue.SortCode
               , NULL AS ftDQualifierValuesId
               , NULL AS DrillDownGIVID
         FROM ftQualifierValues ftQValue)
 UNION(SELECT
             NULL AS ftQualifierValuesId
-            , ListGIVID
-            , Code
-            , Description
-            , Elucidation
-            , SortCode
-            , ftDQualifierValuesId
-            , DrillDownGIVID
-      FROM ftDQualifierValues ftDQV))")
+            , ftDQV.ListGIVID
+            , ftDQV.Code
+            , ftDQV.Description
+            , ftDQV.Elucidation
+            , ftDQV.SortCode
+            , ftDQV.ftDQualifierValuesId
+            , ftDQV.DrillDownGIVID
+      FROM ftDQualifierValues ftDQV))"
+                        )
 
 # Lukt niet ... 
 
@@ -156,8 +156,6 @@ qry_01ACvalues <- dbGetQuery(con_futon,
 #   LEFT JOIN ftValues_union ON ftActionGroupList.ListGIVID = ftValues_union.ListGIVID
 #   WHERE ivRLResources.ResourceGIVID LIKE 'RS2014091211335947' '
 # nanodbc/nanodbc.cpp:1587: 42S02: [Microsoft][ODBC SQL Server Driver][SQL Server]Invalid object name 'ftValues_union'. 
-
-
 
 
 
