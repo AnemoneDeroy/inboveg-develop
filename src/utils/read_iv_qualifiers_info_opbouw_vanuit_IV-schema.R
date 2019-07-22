@@ -89,7 +89,47 @@ Union <- dbGetQuery(con, "SELECT
                                 , ftBWKValues.Elucidation
                                 , ftBWKValues.SortCode
                           FROM ftBWKValues)) ftValues_union")
+#" andere poging
 
+Union <- (("SELECT 
+                    ftQualifierValues.ftQualifierValuesId
+                    , ftQualifierValues.ListGIVID
+                    , ftQualifierValues.Code
+                    , ftQualifierValues.Description
+                    , ftQualifierValues.Elucidation
+                    , ftQualifierValues.SortCode
+                    , NULL AS ftQualifierValues.ftDQualifierValuesId
+                    , NULL AS ftQualifierValues.DrillDownGIVID
+                    FROM ftQualifierValues)
+            UNION (SELECT 
+                    NULL AS ftQualifierValuesId
+                    , ftDQualifierValues.ListGIVID
+                    , ftDQualifierValue.Code
+                    , ftDQualifierValues.Description
+                    , ftDQualifierValues.Elucidation
+                    , ftDQualifierValues.SortCode
+                    , ftDQualifierValues.ftDQualifierValuesId
+                    , ftDQualifierValues.DrillDownGIVID
+                    FROM ftDQualifierValues)")) 
+
+
+dbplyr_001
+                    UNION (dbplyr_001, (SELECT
+                    NULL AS ftQualifierValues.ftQualifierValuesId
+                    , ftAbiotiekValues.ListGIVID
+                    , ftAbiotiekValues.Code
+                    , ftAbiotiekValues.Description
+                    , ftAbiotiekValues.Elucidation
+                    , ftAbiotiekValues.SortCode
+                    FROM ftAbiotiekValues))) dbplyr_002
+                    UNION (dbplyr_002, (SELECT
+                    NULL AS ftQualifierValues.ftQualifierValuesId
+                    , ftBWKValues.ListGIVID
+                    , ftBWKValues.Code
+                    , ftBWKValues.Description
+                    , ftBWKValues.Elucidation
+                    , ftBWKValues.SortCode
+                    FROM ftBWKValues)) ftValues_union")
 
 
 
