@@ -12,7 +12,7 @@ con_futon <- connect_inbo_dbase("D0013_00_Futon")
 ## 3 aparte queries, achteraf mergen
 
 
-## QUERY00 - UNION - WERKT
+## QUERY00 - UNION - WERKT, maar niet haalbaar geïntegreerd in script
 (x <- c(sort(sample(1:20, 9)), NA))
 (y <- c(sort(sample(3:23, 7)), NA))
 union(x, y)
@@ -63,13 +63,12 @@ ftValues_union <-
     #collect()
     show_query()
 
-
 ## RESULT:  
 # Source:   lazy query [?? x 3]
 # Database: Microsoft SQL Server 13.00.5216[INBO\els_debie@INBO-SQL07-PRD\LIVE/D0013_00_Futon]
 # via collect () wordt ftValues_Uinon een tibble ...  A tibble: 2,247 x 3
 
-## Kortere manier dan via union en alle tabellen apart in te lezen?
+## Kortere manier dan via union en alle tabellen apart in te lezen? 
 
 ftValues_union %>% show_query() #in plaats van collect()
 # <SQL>
@@ -81,11 +80,11 @@ ftValues_union %>% show_query() #in plaats van collect()
 #         FROM "ftDQualifierValues")) "dbplyr_005"
 # 
 
-## Op basis van show_query nu de prd-sql omzetten... 
-prd_query <- dbGetQuery(con_futon, "sELECT 
-        ftQValue.Code
-      , ftQValue.Description
-      , ftQValue.ListGIVID
+## Op basis van show_query nu de prd-sql omzetten... dit werkt!!
+union_1 <- dbGetQuery(con_futon, "SELECT 
+        ftQValue_union.Code
+      , ftQValue_union.Description
+      , ftQValue_union.ListGIVID
   FROM ((SELECT 
               ftQValue.ftQualifierValuesId
               , ftQValue.ListGIVID
@@ -105,10 +104,52 @@ UNION(SELECT
             , ftDQV.SortCode
             , ftDQV.ftDQualifierValuesId
             , ftDQV.DrillDownGIVID
-      FROM ftDQualifierValues ftDQV))"
-                        )
+      FROM ftDQualifierValues ftDQV))
+    AS ftQValue_union")
 
-# Lukt niet ... 
+## nu verder uitbreiden met bijkomende tabellen, zelfde principe, 
+# telkens een tabel erbij voegen 
+union2 <- dbGetQuery(con_futon, "sELECT 
+        dbplyr_002.Code
+      , dbplyr_002.Description
+      , dbplyr_002.ListGIVID
+  FROM (((SELECT 
+              ftQValue.ftQualifierValuesId
+              , ftQValue.ListGIVID
+              , ftQValue.Code
+              , ftQValue.Description
+              , ftQValue.Elucidation
+              , ftQValue.SortCode
+              , NULL AS ftDQualifierValuesId
+              , NULL AS DrillDownGIVID
+        FROM ftQualifierValues ftQValue)
+UNION(SELECT
+            NULL AS ftQualifierValuesId
+            , ftDQV.ListGIVID
+            , ftDQV.Code
+            , ftDQV.Description
+            , ftDQV.Elucidation
+            , ftDQV.SortCode
+            , ftDQV.ftDQualifierValuesId
+            , ftDQV.DrillDownGIVID
+      FROM ftDQualifierValues ftDQV))AS dbplyr_001)
+UNION ((SELECT
+          dbplyr_001.Code
+          , dbplyr_001.Description
+          , dbplyr_001.ListGIVID
+FROM dbplyr_001), (SELECT
+          ftAbioV.ListGIVID
+          , ftAbioV.Code
+          , ftAbioV.Description
+          , NULL as ftAbiotiekValuesId
+      FROM ftAbiotiekValues ftAbioV)) as dbplyr_002")
+
+   
+                     
+                     
+# laatste regel zet alle unions in  $  AS ftQValue_union")  $
+
+
 
 
 ## QUERY01 ACValues
@@ -320,7 +361,6 @@ ftValues_union <-
         , ftCoverValues
         , ftFenoValues) %>% 
   select(Code, Description, ListGIVID)
-
 
 
 
