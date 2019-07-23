@@ -12,18 +12,9 @@ con_futon <- connect_inbo_dbase("D0013_00_Futon")
 ## 3 aparte queries, achteraf mergen
 
 
-## QUERY00 - UNION - WERKT
-(x <- c(sort(sample(1:20, 9)), NA))
-(y <- c(sort(sample(3:23, 7)), NA))
-union(x, y)
+## QUERY00 - UNION
 
-order_by(10:1, cumsum(1:10))
-x <- 10:1
-y <- 1:10
-order_by(x, cumsum(y))
-
-?glue_sql
-
+# inlezen van de verschillende value tabellen
 tbl_ftQV      <- tbl(con_futon, from = "ftQualifierValues")
 tbl_ftDQV     <- tbl(con_futon, from = "ftDQualifierValues")
 tbl_ftAbioV   <- tbl(con_futon, from = "ftAbiotiekValues")
@@ -41,123 +32,98 @@ tbl_ftSociaV  <- tbl(con_futon, from = "ftSociaValues")
 tbl_ftSoilV   <- tbl(con_futon, from = "ftSoilValues")
 tbl_ftVitaV   <- tbl(con_futon, from = "ftVitaValues")
 
+# deze union en de drie velden ListGIVID, Code and Description behouden 
+#alles in 1 keer werkt niet, dus tabel per tabel
+ftValues_union_001 <- 
+  union(tbl_ftQV , tbl_ftDQV) %>% 
+  select(Code, Description, ListGIVID) %>% 
+  collect()
 
-ftValues_union <- 
-    union(tbl_ftQV
-      , tbl_ftDQV
-      , tbl_ftAbioV
-      , tbl_ftBWKV
-      , tbl_ftCoverV
-      , tbl_ftFenoV
-      , tbl_ftGebiedV
-      , tbl_ftGHCV
-      , tbl_ftLayerV
-      , tbl_ftLFV
-      , tbl_ftMngmtV
-      , tbl_ftPatchV
-      , tbl_ftN2kV
-      , tbl_ftSociaV
-      , tbl_ftSoilV
-      , tbl_ftVitaV) %>% 
-    select(Code, Description, ListGIVID) %>% 
-    #collect()
-    show_query()
+ftValues_union_002 <- 
+  union(ftValues_union_001, tbl_ftAbioV) %>% 
+  select(Code, Description, ListGIVID) %>% 
+  collect()
+
+ftValues_union_003 <- 
+  union(ftValues_union_002, tbl_ftBWKV) %>% 
+  select(Code, Description, ListGIVID)
+
+# cover heeft geen Description, hier de percentage van cover-codes gebruiken
+ftValues_union_004 <- tbl_ftCoverV %>% 
+  select(Code , PctValue, ListGIVID) %>%
+  rename(Description = PctValue) %>% 
+  union(ftValues_union_003, tbl_ftCoverV) %>% 
+  select(Code, Description, ListGIVID)
+
+ftValues_union_005 <- 
+  union(ftValues_union_004, tbl_ftFenoV) %>% 
+  select(Code, Description, ListGIVID)
+
+ftValues_union_006 <- 
+  union(ftValues_union_005, tbl_ftGebiedV) %>% 
+  select(Code, Description, ListGIVID)
+
+ftValues_union_007 <-
+  union(ftValues_union_006, tbl_ftGHCV) %>% 
+  select(Code, Description, ListGIVID)
+
+ftValues_union_008 <- 
+  union(ftValues_union_007, tbl_ftLayerV) %>% 
+  select(Code, Description, ListGIVID)
+
+ftValues_union_009 <-
+  union(ftValues_union_008, tbl_ftLFV) %>% 
+  select(Code, Description, ListGIVID)
+
+ftValues_union_010 <-
+  union(ftValues_union_009, tbl_ftMngmtV) %>% 
+  select(Code, Description, ListGIVID)
+
+ftValues_union_011 <-
+  union(ftValues_union_010, tbl_ftPatchV) %>% 
+  select(Code, Description, ListGIVID)
+
+ftValues_union_012 <-
+  union(ftValues_union_011, tbl_ftN2kV) %>% 
+  select(Code, Description, ListGIVID)
+
+ftValues_union_013 <- 
+  union(ftValues_union_012, tbl_ftSociaV) %>% 
+  select(Code, Description, ListGIVID)
+
+ftValues_union_014 <-
+  union(ftValues_union_013, tbl_ftSoilV) %>% 
+  select(Code, Description, ListGIVID)
+
+ftValues_union_015 <-
+  union(ftValues_union_014, tbl_ftVitaV) %>% 
+  select(Code, Description, ListGIVID) %>% 
 
 
-## RESULT:  
-# Source:   lazy query [?? x 3]
-# Database: Microsoft SQL Server 13.00.5216[INBO\els_debie@INBO-SQL07-PRD\LIVE/D0013_00_Futon]
-# via collect () wordt ftValues_Uinon een tibble ...  A tibble: 2,247 x 3
-
-## Kortere manier dan via union en alle tabellen apart in te lezen?
-
-ftValues_union %>% show_query() #in plaats van collect()
-# <SQL>
-#   SELECT "Code", "Description", "ListGIVID"
-# FROM ((SELECT "ftQualifierValuesId", "ListGIVID", "Code", "Description", "Elucidation", "SortCode", NULL AS "ftDQualifierValuesId", NULL AS "DrillDownGIVID"
-#        FROM "ftQualifierValues")
-#       UNION
-#       (SELECT NULL AS "ftQualifierValuesId", "ListGIVID", "Code", "Description", "Elucidation", "SortCode", "ftDQualifierValuesId", "DrillDownGIVID"
-#         FROM "ftDQualifierValues")) "dbplyr_005"
-# 
-
-## Op basis van show_query nu de prd-sql omzetten... 
-prd_query <- ("
-  SELECT 
-        ftQValue.Code
-      , ftQValue.Description
-      , ftQValue.ListGIVID
-  FROM ((SELECT 
-              ftQualifierValuesId
-              , ListGIVID
-              , Code
-              , Description
-              , Elucidation
-              , SortCode
-              , NULL AS ftDQualifierValuesId
-              , NULL AS DrillDownGIVID
-        FROM ftQualifierValues ftQValue)
-UNION(SELECT
-            NULL AS ftQualifierValuesId
-            , ListGIVID
-            , Code
-            , Description
-            , Elucidation
-            , SortCode
-            , ftDQualifierValuesId
-            , DrillDownGIVID
-      FROM ftDQualifierValues ftDQV))")
-
-# Lukt niet ... 
+## alles samen zetten ... hoe PctValue weergeven ipv Description
+ftValues_union <- ftValues_union_015 %>% collect() %>% view()
 
 
 ## QUERY01 ACValues
-qry_01ACvalues <- dbGetQuery(con,
-  "SELECT 
-       ivRLResources.ResourceGIVID
-     , ivRLResources.ActionGroup
-     , ivRLResources.ListName
-     , ftValues_union.Code
-     , ftValues_union.Description
-  FROM ivRLResources 
-  LEFT JOIN D0013_00_Futon.dbo.ftActionGroupList ON ivRLResources.ListName = D0013_00_Futon.dbo.ftActionGroupList.ListName collate Latin1_General_CI_AI
-  AND ivRLResources.ActionGroup = D0013_00_Futon.dbo.ftActionGroupList.ActionGroup collate Latin1_General_CI_AI
-  LEFT JOIN ftValues_union ON D0013_00_Futon.dbo.ftActionGroupList.ListGIVID = ftValues_union.ListGIVID
-    WHERE ivRLResources.ResourceGIVID LIKE 'RS2014091211335947' ")
-  ## WHERE ftValues_union.ListGIVID LIKE 'FT2010120311482606' ")
 
-head(qry_01ACvalues) %>% knitr::kable()
+qry_01ACvalues <- dbGetQuery(con, 
+        "SELECT 
+            ivRLResources.ResourceGIVID
+            , ivRLResources.ActionGroup
+            , ivRLResources.ListName
+            , D0013_00_Futon.dbo.ftActionGroupList.ListGIVID
+        FROM ivRLResources 
+        LEFT JOIN D0013_00_Futon.dbo.ftActionGroupList ON 
+        ivRLResources.ListName = D0013_00_Futon.dbo.ftActionGroupList.ListName 
+                      collate Latin1_General_CI_AI
+        AND ivRLResources.ActionGroup = D0013_00_Futon.dbo.ftActionGroupList.ActionGroup 
+                      collate Latin1_General_CI_AI 
+                ")
+qry_01ACvalues %>% View
 
-
-## QUERY01 ACValues - CONNECTIE Futon
-qry_01ACvalues <- dbGetQuery(con_futon,
-                             "SELECT 
-       D0010_00_Cydonia.dbo.ivRLResources.ResourceGIVID
-     , D0010_00_Cydonia.dbo.ivRLResources.ActionGroup
-     , D0010_00_Cydonia.dbo.ivRLResources.ListName
-     , ftValues_union.Code
-     , ftValues_union.Description
-  FROM D0010_00_Cydonia.dbo.ivRLResources 
-  LEFT JOIN ftActionGroupList ON D0010_00_Cydonia.dbo.ivRLResources.ListName = ftActionGroupList.ListName collate Latin1_General_CI_AI
-  AND D0010_00_Cydonia.dbo.ivRLResources.ActionGroup = ftActionGroupList.ActionGroup collate Latin1_General_CI_AI
-  LEFT JOIN ftValues_union ON ftActionGroupList.ListGIVID = ftValues_union.ListGIVID
-  WHERE D0010_00_Cydonia.dbo.ivRLResources.ResourceGIVID LIKE 'RS2014091211335947' ")
-
-## hoe kan ik verwijzen naar die eerste tibble? want daar geeft ie altijd foutmelding? 
-# Error: <SQL> 'SELECT 
-#        D0010_00_Cydonia.dbo.ivRLResources.ResourceGIVID
-#      , D0010_00_Cydonia.dbo.ivRLResources.ActionGroup
-#      , D0010_00_Cydonia.dbo.ivRLResources.ListName
-#      , ftValues_union.Code
-#      , ftValues_union.Description
-#   FROM D0010_00_Cydonia.dbo.ivRLResources 
-#   LEFT JOIN ftActionGroupList ON D0010_00_Cydonia.dbo.ivRLResources.ListName = ftActionGroupList.ListName collate Latin1_General_CI_AI
-#   AND D0010_00_Cydonia.dbo.ivRLResources.ActionGroup = ftActionGroupList.ActionGroup collate Latin1_General_CI_AI
-#   LEFT JOIN ftValues_union ON ftActionGroupList.ListGIVID = ftValues_union.ListGIVID
-#   WHERE ivRLResources.ResourceGIVID LIKE 'RS2014091211335947' '
-# nanodbc/nanodbc.cpp:1587: 42S02: [Microsoft][ODBC SQL Server Driver][SQL Server]Invalid object name 'ftValues_union'. 
-
-
+Resources_Union <- qry_01ACvalues %>% 
+  left_join(ftValues_union, by = c("ListGIVID" = "ListGIVID")) %>% 
+  View
 
 
 
@@ -195,134 +161,6 @@ testje <- dbGetQuery(con,glue_sql(
   WHERE (((ivRLQualifier.ParentID) Is Null))
   ORDER BY ivRecording.UserReference, ivRLQualifier.QualifierType, ivRLQualifier.QualifierCode;"
                    ,.con = con))
-
-
-################### TESTEN
-
-## uit prd-access van luc VH - Samenvoegquery
-
-prd-query <- ("SELECT 
-      ftQValue.Code
-    , ftQValue.Description
-    , ftQValue.ListGIVID
-  FROM tbl_ftQValues ftQValue
-  ORDER BY  ftQValue.ListGIVID
-          , ftQValue.Code
-UNION(SELECT
-          ftDQValue.Code
-          , ftDQValue.Description
-          , ftDQValue.ListGIVID as
-      FROM ftDQualifierValues ftDQValue
-      ORDER BY  ftDQValue.ListGIVID
-              , ftDQValue.Code)
-UNION (SELECT
-          ftAbioV.Code
-          , ftAbioV.Description
-          , ftAbioV.ListGIVID
-       FROM ftAbiotiekValues ftAbioV
-       ORDER BY  ftAbioV.ListGIVID
-               , ftAbioV.Code)
-UNION (SELECT
-          ftBWKV.Code  
-          , ftBWKV.Description as oms
-          , ftBWKV.ListGIVID 
-      FROM D0013_00_Futon.dbo.ftBWKValues ftBWKV
-      ORDER BY  ftBWKV.ListGIVID
-              , ftBWKV.Code
-UNION (SELECT
-          ftCoverV.Code
-          , ftCoverV.PctValue as oms
-          , ftCoverV.ListGIVID
-       FROM D0013_00_Futon.dbo.ftCoverValues ftCoverV
-       ORDER BY  ftCoverV.ListGIVID
-               , ftCoverV.Code
-UNION (SELECT
-          ftFenoV.Code
-          , ftFenoV.Description as oms
-          , ftFenoV.ListGIVID
-       FROM D0013_00_Futon.dbo.ftFenoValues ftFenoV
-       ORDER BY  ftFenoV.ListGIVID
-                , ftFenoV.Code
-UNION (SELECT
-          ftGebiedV.Code
-          , ftGebiedV.Description as oms
-          , ftGebiedV.ListGIVID 
-      FROM D0013_00_Futon.dbo.ftgebiedValues ftGebiedV
-      ORDER BY  ftGebiedV.ListGIVID
-              ,ftGebiedV.Code)
-# UNION (SELECT
-#             ftGHCV.Code
-#             , ftGHCV."-" as oms
-#             , ftGHCV.ListGIVID
-#        FROM D0013_00_Futon.dbo.ftGHCValues ftGHCV
-#        ORDER BY  ftGHCV.ListGIVID
-#                , ftGHCV.Code)
-UNION (SELECT
-            ftLayerV.Code
-            , ftLayerV.Description as oms
-            , ftLayerV.ListGIVID 
-       FROM ftLayerValues ftLayerV
-       ORDER BY  ftLayerV.ListGIVID
-               , ftLayerV.Code)
-UNION (SELECT
-            ftLFV.Code
-            , ftLFV.Description as oms
-            , ftLFV.ListGIVID
-       FROM D0013_00_Futon.dbo.ftLFValues ftLFV
-       ORDER BY  ftLFV.ListGIVID
-               , ftLFV.Code
-UNION (SELECT
-            ftMngmtV.Code
-            , ftMngmtV.Description as oms
-            , ftMngmtV.ListGIVID 
-      FROM D0013_00_Futon.dbo.ftMngmtValues ftMngmtV
-      ORDER BY  ftMngmtV.ListGIVID, ftMngmtV.Code)
-UNION (SELECT
-            ftN2kV.Code
-            , ftN2kV.Description as oms
-            , ftN2kV.ListGIVID 
-      FROM D0013_00_Futon.dbo.ftN2kValues ftN2kV
-      ORDER BY  ftN2kV.ListGIVID
-              , ftN2kV.Code)
-UNION (SELECT
-            ftPatchV.Code
-            , ftPatchV.Description as oms
-            , ftPatchV.ListGIVID 
-      FROM D0013_00_Futon.dbo.ftPatchValues ftPatchV
-      ORDER BY  ftPatchV.ListGIVID
-              , ftPatchV.Code)
-UNION (SELECT
-            ftSociaV.Code
-            , ftSociaV.Description as oms
-            , ftSociaV.ListGIVID 
-      FROM D0013_00_Futon.dbo.ftSociaValues ftSociaV
-      ORDER BY  ftSociaV.ListGIVID
-              , ftSociaV.Code)
- UNION (SELECT
-            ftSoilV.Code
-            , ftSoilV.Description as oms
-            , ftSoilV.ListGIVID
-        FROM D0013_00_Futon.dbo.ftSoilValues ftSoilV
-        ORDER BY  ftSoilV.ListGIVID
-            '    , ftSoilV.Code)
-UNION (SELECT
-            ftVitaV.Code
-            , ftVitaV.Description as oms
-            , ftVitaV.ListGIVID
-      FROM D0013_00_Futon.dbo.ftVitaValues ftVitaV
-      ORDER BY ftVitaV.ListGIVID
-             , ftVitaV.Code)")
-
-## Lukt dit ook zonder eerst alle tbl's in te laden? NOPE
-ftValues_union <- 
-  union(ftQualifierValues
-        , ftDQualifierValues
-        , ftAbiotiekValues
-        , ftBWKValues
-        , ftCoverValues
-        , ftFenoValues) %>% 
-  select(Code, Description, ListGIVID)
-
 
 
 
