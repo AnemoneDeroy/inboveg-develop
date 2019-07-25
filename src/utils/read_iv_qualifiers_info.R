@@ -7,6 +7,7 @@ library(glue)
 library(knitr)
 library(odbc)
 library(assertthat)
+# library(dplyr)
 library(inborutils)
 
 ## connectie met de 2 databanken
@@ -37,75 +38,96 @@ tbl_ftSoilV   <- tbl(con_futon, from = "ftSoilValues")
 tbl_ftVitaV   <- tbl(con_futon, from = "ftVitaValues")
 
 # deze union en de drie velden ListGIVID, Code and Description behouden 
-#alles in 1 keer werkt niet, dus tabel per tabel
-ftValues_union_001 <- 
-  union(tbl_ftQV , tbl_ftDQV) %>% 
-  select(Code, Description, ListGIVID)
+ftValues_union <-
+  union(tbl_ftAbioV
+        , tbl_ftBWKV
+        , tbl_ftCoverV %>% rename(Description = PctValue)
+        , tbl_ftDQV
+        , tbl_ftFenoV
+        , tbl_ftGebiedV
+        , tbl_ftGHCV
+        , tbl_ftLayerV
+        , tbl_ftLFV
+        , tbl_ftMngmtV
+        , tbl_ftN2kV
+        , tbl_ftPatchV
+        , tbl_ftQV
+        , tbl_ftSociaV
+        , tbl_ftSoilV
+        , tbl_ftVitaV
+        ) %>%
+  select(Code, Description, ListGIVID) %>% 
+  collect()
 
-ftValues_union_002 <- 
-  union(ftValues_union_001, tbl_ftAbioV) %>% 
-  select(Code, Description, ListGIVID)
-
-ftValues_union_003 <- 
-  union(ftValues_union_002, tbl_ftBWKV) %>% 
-  select(Code, Description, ListGIVID)
-
-# cover heeft geen Description, hier de percentage van cover-codes gebruiken
-ftValues_union_004 <- tbl_ftCoverV %>% 
-  select(Code , PctValue, ListGIVID) %>%
-  rename(Description = PctValue) %>% 
-  union(ftValues_union_003, tbl_ftCoverV) %>% 
-  select(Code, Description, ListGIVID)
-
-ftValues_union_005 <- 
-  union(ftValues_union_004, tbl_ftFenoV) %>% 
-  select(Code, Description, ListGIVID)
-
-ftValues_union_006 <- 
-  union(ftValues_union_005, tbl_ftGebiedV) %>% 
-  select(Code, Description, ListGIVID)
-
-ftValues_union_007 <-
-  union(ftValues_union_006, tbl_ftGHCV) %>% 
-  select(Code, Description, ListGIVID)
-
-ftValues_union_008 <- 
-  union(ftValues_union_007, tbl_ftLayerV) %>% 
-  select(Code, Description, ListGIVID)
-
-ftValues_union_009 <-
-  union(ftValues_union_008, tbl_ftLFV) %>% 
-  select(Code, Description, ListGIVID)
-
-ftValues_union_010 <-
-  union(ftValues_union_009, tbl_ftMngmtV) %>% 
-  select(Code, Description, ListGIVID)
-
-ftValues_union_011 <-
-  union(ftValues_union_010, tbl_ftPatchV) %>% 
-  select(Code, Description, ListGIVID)
-
-ftValues_union_012 <-
-  union(ftValues_union_011, tbl_ftN2kV) %>% 
-  select(Code, Description, ListGIVID)
-
-ftValues_union_013 <- 
-  union(ftValues_union_012, tbl_ftSociaV) %>% 
-  select(Code, Description, ListGIVID) 
-
-# hier gaat het mis, maar hoe kan dat? 
-# volledig zelfde opgebouwd als hierboven
-# structuur tbl_ftSoilV is zelfde
- ftValues_union_014 <-
-  union(ftValues_union_013, tbl_ftSoilV) %>% 
-  select(Code, Description, ListGIVID) 
-
-ftValues_union_015 <-
-  union(ftValues_union_014, tbl_ftVitaV) %>% 
-  select(Code, Description, ListGIVID) 
-
-## alles samen bekijken, als 014 en 015 werkt
-ftValues_union <- ftValues_union_015 %>% collect()
+        # #alles in 1 keer werkt niet, dus tabel per tabel
+        # ftValues_union_001 <- 
+        #   union(tbl_ftQV , tbl_ftDQV) %>% 
+        #   select(Code, Description, ListGIVID)
+        # 
+        # ftValues_union_002 <- 
+        #   union(ftValues_union_001, tbl_ftAbioV) %>% 
+        #   select(Code, Description, ListGIVID)
+        # 
+        # ftValues_union_003 <- 
+        #   union(ftValues_union_002, tbl_ftBWKV) %>% 
+        #   select(Code, Description, ListGIVID)
+        # 
+        # # cover heeft geen Description, hier de percentage van cover-codes gebruiken
+        # ftValues_union_004 <- tbl_ftCoverV %>% 
+        #   select(Code , PctValue, ListGIVID) %>%
+        #   rename(Description = PctValue) %>% 
+        #   union(ftValues_union_003, tbl_ftCoverV) %>% 
+        #   select(Code, Description, ListGIVID)
+        # 
+        # ftValues_union_005 <- 
+        #   union(ftValues_union_004, tbl_ftFenoV) %>% 
+        #   select(Code, Description, ListGIVID)
+        # 
+        # ftValues_union_006 <- 
+        #   union(ftValues_union_005, tbl_ftGebiedV) %>% 
+        #   select(Code, Description, ListGIVID)
+        # 
+        # ftValues_union_007 <-
+        #   union(ftValues_union_006, tbl_ftGHCV) %>% 
+        #   select(Code, Description, ListGIVID)
+        # 
+        # ftValues_union_008 <- 
+        #   union(ftValues_union_007, tbl_ftLayerV) %>% 
+        #   select(Code, Description, ListGIVID)
+        # 
+        # ftValues_union_009 <-
+        #   union(ftValues_union_008, tbl_ftLFV) %>% 
+        #   select(Code, Description, ListGIVID)
+        # 
+        # ftValues_union_010 <-
+        #   union(ftValues_union_009, tbl_ftMngmtV) %>% 
+        #   select(Code, Description, ListGIVID)
+        # 
+        # ftValues_union_011 <-
+        #   union(ftValues_union_010, tbl_ftPatchV) %>% 
+        #   select(Code, Description, ListGIVID)
+        # 
+        # ftValues_union_012 <-
+        #   union(ftValues_union_011, tbl_ftN2kV) %>% 
+        #   select(Code, Description, ListGIVID)
+        # 
+        # ftValues_union_013 <- 
+        #   union(ftValues_union_012, tbl_ftSociaV) %>% 
+        #   select(Code, Description, ListGIVID) 
+        # 
+        # # hier gaat het mis, maar hoe kan dat? 
+        # # volledig zelfde opgebouwd als hierboven
+        # # structuur tbl_ftSoilV is zelfde
+        #  ftValues_union_014 <-
+        #   union(ftValues_union_013, tbl_ftSoilV) %>% 
+        #   select(Code, Description, ListGIVID) 
+        # 
+        # ftValues_union_015 <-
+        #   union(ftValues_union_014, tbl_ftVitaV) %>% 
+        #   select(Code, Description, ListGIVID) 
+        # 
+        # ## alles samen bekijken, als 014 en 015 werkt
+        # ftValues_union <- ftValues_union_015 %>% collect()
 
 
 ## QUERY01 AC-Values - dit werkt
@@ -128,7 +150,7 @@ qry_01ACvalues %>% View()
 # testen via ftValues_union_001, dus enkel Qualifiers en DQualifiers, werkt,
 # nu dus die ftValues_union_014 en 015 in orde krijgen ...
 Resources_Union <- qry_01ACvalues %>% 
-  left_join(ftValues_union_001, by = c("ListGIVID" = "ListGIVID"), copy = TRUE) %>% 
+  left_join(ftValues_union, by = c("ListGIVID" = "ListGIVID"), copy = TRUE) %>% 
   collect()
  # View()
 
@@ -144,31 +166,49 @@ Releve_Qualifiers <- dbGetQuery(con,
      , ivRecording.Observer
      , ivRLQualifier.QualifierType
      , ivRLQualifier.QualifierCode
-     , Resources_Union.Description    
-     , ivRLQualifier_1.QualifierCode
-     , Resources_Union_1.Description 
-     , ivRLQualifier_2.QualifierCode
-     , Resources_Union_2.Description 
+     , ivRLQualifier_1.QualifierCode as QualifierCode_1
+     , ivRLQualifier_2.QualifierCode as QualifierCode_2
      , ivRLQualifier.Elucidation
      , ivRLQualifier.NotSure
      , ivRLQualifier.ParentID
+     , ivRLQualifier.QualifierResource
+     , ivRLQualifier_1.QualifierResource as QualifierResource_1
+     , ivRLQualifier_2.QualifierResource as QualifierResource_2
+     , Recources_Union.Description
   FROM ivRecording
   LEFT JOIN ivRLQualifier ON ivRecording.Id = ivRLQualifier.RecordingID 
   LEFT JOIN ivRLQualifier AS ivRLQualifier_1 ON 
                    ivRLQualifier.ID = ivRLQualifier_1.ParentID
   LEFT JOIN ivRLQualifier AS ivRLQualifier_2 ON 
-                   ivRLQualifier_1.ID = ivRLQualifier_2.ParentID 
-  LEFT JOIN Resources_Union ON (ivRLQualifier.QualifierCode = Resources_Union.Code) 
-      AND (ivRLQualifier.QualifierResource = Resources_Union.ResourceGIVID) 
+                   ivRLQualifier_1.ID = ivRLQualifier_2.ParentID
+  LEFT_JOIN (Recources_Union ON (ivRLQualifier.Code = Resources_Union.Code)
+  AND (ivRLQualifier.QualifierResource = Resources_Union.ResourceGIVID));")
+
+# , Recources_Union_1.Description
+# , Recources_Union_2.Description
+# 
+#   WHERE (((ivRLQualifier.ParentID) Is Null))
+#   ORDER BY ivRecording.UserReference, ivRLQualifier.QualifierType, ivRLQualifier.QualifierCode;")
+
+## dit werkt wel 
+Releve_Qualifiers_2 <- Releve_Qualifiers %>% 
+  left_join(Resources_Union, by = c("QualifierCode" = "Code")) %>% 
+  left_join(Resources_Union, by = c("QualifierResource" = "ResourceGIVID"))
+             
+
+
+LEFT JOIN Resources_Union ON ivRLQualifier.QualifierCode = Resources_Union.Code
+  AND ivRLQualifier.QualifierResource = Resources_Union.ResourceGIVID")
+
+
   LEFT JOIN Resources_Union AS Resources_Union_1 ON 
                    (ivRLQualifier_1.QualifierCode = Resources_Union_1.Code)
       AND (ivRLQualifier_1.QualifierResource = Resources_Union_1.ResourceGIVID) 
   LEFT JOIN Resources_Union AS Resources_Union_2 ON 
                    (ivRLQualifier_2.QualifierCode = Resources_Union_2.Code)
       AND (ivRLQualifier_2.QualifierResource = Resources_Union.ResourceGIVID)
-  WHERE (((ivRLQualifier.ParentID) Is Null))
-  ORDER BY ivRecording.UserReference, ivRLQualifier.QualifierType, ivRLQualifier.QualifierCode;"
-                   ,.con = con)
+
+Releve_Qualifiers %>%  view()
 
 ##### origineel uit accesfronted view
 origineel <- "SELECT 
