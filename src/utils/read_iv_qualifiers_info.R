@@ -98,8 +98,7 @@ ftValues_union_013 <-
 # structuur tbl_ftSoilV is zelfde
  ftValues_union_014 <-
   union(ftValues_union_013, tbl_ftSoilV) %>% 
-  select(Code, Description, ListGIVID) %>% 
-   view()
+  select(Code, Description, ListGIVID) 
 
 ftValues_union_015 <-
   union(ftValues_union_014, tbl_ftVitaV) %>% 
@@ -200,7 +199,7 @@ WHERE (((ivRLQualifier.ParentID) Is Null))
 ORDER BY ivRecording.UserReference, ivRLQualifier.QualifierType, ivRLQualifier.QualifierCode;"
 
 
-## functie opbouwen 
+## functie opbouwen - nog uitwerken, eerst hier boven in orde krijgen.
 
 inboveg_qualifiers <- function(connection,
                                         survey_name,
