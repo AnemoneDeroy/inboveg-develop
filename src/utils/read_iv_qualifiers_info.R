@@ -147,17 +147,27 @@ qry_01ACvalues <- dbGetQuery(con,
                 ")
 qry_01ACvalues %>% View()
 
-# testen via ftValues_union_001, dus enkel Qualifiers en DQualifiers, werkt,
-# nu dus die ftValues_union_014 en 015 in orde krijgen ...
+# Linken tabel Ac-Values met de alle Values uit de Value-tables
 Resources_Union <- qry_01ACvalues %>% 
   left_join(ftValues_union, by = c("ListGIVID" = "ListGIVID"), copy = TRUE) %>% 
   collect()
  # View()
 
+# lost dit probleem op ? nee
+tbl_Resources_Union <- as.data.frame(Resources_Union)
+str(tbl_Resources_Union)
+# 'data.frame':	4372 obs. of  6 variables:
+#   $ ResourceGIVID: chr  "RS2012052416033749" "RS2012052416033749" "RS2012052416033749" "RS2012052416033749" ...
+# $ ActionGroup  : chr  "abiotiek" "abiotiek" "abiotiek" "abiotiek" ...
+# $ ListName     : chr  "BioHab" "BioHab" "BioHab" "BioHab" ...
+# $ ListGIVID    : chr  "FT2010120314510550" "FT2010120314510550" "FT2010120314510550" "FT2010120314510550" ...
+# $ Code         : chr  "0" "-1" "1.1" "1.2" ...
+# $ Description  : chr  "no record made" "not included in survey" "aquatic - eutrophic" "aquatic - acid" ...
 
 ## QUERY02 MSQualifiers per opname
-# als QUERY00 en 01 werken ... werkt dus nog niet
-# dit test met "ftValues_union_001", dus enkel Qualifiers en DrillDownQualifiers
+# Hier nog probleem bij het oproepen van Recources_Union
+# ""Recources_Union" is not a recognized table hints option. If it is intended as a parameter 
+# to a table-valued function or to the CHANGETABLE function, ensure that your database compatibility mode is set to 
 
 Releve_Qualifiers <- dbGetQuery(con,
   "SELECT 
@@ -174,15 +184,13 @@ Releve_Qualifiers <- dbGetQuery(con,
      , ivRLQualifier.QualifierResource
      , ivRLQualifier_1.QualifierResource as QualifierResource_1
      , ivRLQualifier_2.QualifierResource as QualifierResource_2
-     , Recources_Union.Description
+     , tbl_Resources_Union.Description
   FROM ivRecording
   LEFT JOIN ivRLQualifier ON ivRecording.Id = ivRLQualifier.RecordingID 
-  LEFT JOIN ivRLQualifier AS ivRLQualifier_1 ON 
-                   ivRLQualifier.ID = ivRLQualifier_1.ParentID
-  LEFT JOIN ivRLQualifier AS ivRLQualifier_2 ON 
-                   ivRLQualifier_1.ID = ivRLQualifier_2.ParentID
-  LEFT_JOIN (Recources_Union ON (ivRLQualifier.Code = Resources_Union.Code)
-  AND (ivRLQualifier.QualifierResource = Resources_Union.ResourceGIVID));")
+  LEFT JOIN ivRLQualifier AS ivRLQualifier_1 ON ivRLQualifier.ID = ivRLQualifier_1.ParentID
+  LEFT JOIN ivRLQualifier AS ivRLQualifier_2 ON ivRLQualifier_1.ID = ivRLQualifier_2.ParentID
+  LEFT_JOIN tbl_Resources_Union ON ivRLQualifier.Code = tbl_Resources_Union.Code
+  AND ivRLQualifier.QualifierResource = tbl_Resources_Union.ResourceGIVID;")
 
 # , Recources_Union_1.Description
 # , Recources_Union_2.Description
@@ -195,18 +203,57 @@ Releve_Qualifiers_2 <- Releve_Qualifiers %>%
   left_join(Resources_Union, by = c("QualifierCode" = "Code")) %>% 
   left_join(Resources_Union, by = c("QualifierResource" = "ResourceGIVID"))
              
+# LEFT JOIN Resources_Union ON ivRLQualifier.QualifierCode = Resources_Union.Code
+#   AND ivRLQualifier.QualifierResource = Resources_Union.ResourceGIVID")
+# 
+# 
+#   LEFT JOIN Resources_Union AS Resources_Union_1 ON 
+#                    (ivRLQualifier_1.QualifierCode = Resources_Union_1.Code)
+#       AND (ivRLQualifier_1.QualifierResource = Resources_Union_1.ResourceGIVID) 
+#   LEFT JOIN Resources_Union AS Resources_Union_2 ON 
+#                    (ivRLQualifier_2.QualifierCode = Resources_Union_2.Code)
+#       AND (ivRLQualifier_2.QualifierResource = Resources_Union.ResourceGIVID)
+
+## 2de poging
+Releve_Qualifiers <- dbGetQuery(con,
+                                "SELECT 
+                                ivRLQualifier.QualifierType
+                                , ivRLQualifier.QualifierCode
+                                , ivRLQualifier.Elucidation
+                                , ivRLQualifier.NotSure
+                                , ivRLQualifier.ParentID
+                                , ivRLQualifier.QualifierResource
+                                , tbl_Resources_Union.Description
+                                FROM ivRLQualifier
+                                LEFT_JOIN (tbl_Resources_Union ON ivRLQualifier.QualifierCode = tbl_Resources_Union.Code
+                                AND ivRLQualifier.QualifierResource = tbl_Resources_Union.ResourceGIVID) ;")
+
+# , Recources_Union_1.Description
+# , Recources_Union_2.Description
+# 
+#   WHERE (((ivRLQualifier.ParentID) Is Null))
+#   ORDER BY ivRecording.UserReference, ivRLQualifier.QualifierType, ivRLQualifier.QualifierCode;")
+
+## dit werkt wel 
+Releve_Qualifiers_2 <- Releve_Qualifiers %>% 
+  left_join(Resources_Union, by = c("QualifierCode" = "Code")) %>% 
+  left_join(Resources_Union, by = c("QualifierResource" = "ResourceGIVID"))
+
+# 
+# 
+# LEFT JOIN Resources_Union ON ivRLQualifier.QualifierCode = Resources_Union.Code
+# AND ivRLQualifier.QualifierResource = Resources_Union.ResourceGIVID")
+# 
+# 
+#   LEFT JOIN Resources_Union AS Resources_Union_1 ON 
+#                    (ivRLQualifier_1.QualifierCode = Resources_Union_1.Code)
+#       AND (ivRLQualifier_1.QualifierResource = Resources_Union_1.ResourceGIVID) 
+#   LEFT JOIN Resources_Union AS Resources_Union_2 ON 
+#                    (ivRLQualifier_2.QualifierCode = Resources_Union_2.Code)
+#       AND (ivRLQualifier_2.QualifierResource = Resources_Union.ResourceGIVID)
 
 
-LEFT JOIN Resources_Union ON ivRLQualifier.QualifierCode = Resources_Union.Code
-  AND ivRLQualifier.QualifierResource = Resources_Union.ResourceGIVID")
 
-
-  LEFT JOIN Resources_Union AS Resources_Union_1 ON 
-                   (ivRLQualifier_1.QualifierCode = Resources_Union_1.Code)
-      AND (ivRLQualifier_1.QualifierResource = Resources_Union_1.ResourceGIVID) 
-  LEFT JOIN Resources_Union AS Resources_Union_2 ON 
-                   (ivRLQualifier_2.QualifierCode = Resources_Union_2.Code)
-      AND (ivRLQualifier_2.QualifierResource = Resources_Union.ResourceGIVID)
 
 Releve_Qualifiers %>%  view()
 
