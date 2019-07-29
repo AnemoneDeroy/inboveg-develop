@@ -1,4 +1,62 @@
-# QUALIFIERS ophalen en linken met relevés
+#' @title Query qualifier information of recordings (relevé) from INBOVEG
+#'
+#' @description This function queries the INBOVEG database for
+#' qualifier information on recordings  for one or more surveys.
+#'
+#' @param survey_name A character string or a character vector, depending on
+#' multiple parameter, giving the name or names of the
+#' survey(s) for which you want to extract relevé information. If missing, all
+#' surveys are returned.
+#' @param connection dbconnection with the database 'Cydonia'
+#' on the inbo-sql07-prd server
+#' @param collect If FALSE (the default), a remote tbl object is returned.
+#' This is like a reference to the result of the query but the full result of
+#' the query is not brought into memory. If TRUE the full result of the query is
+#' collected (fetched) from the database and brought into memory of the working
+#' environment.
+#' @param multiple If TRUE, survey_name can take a character vector with
+#' multiple survey names that must match exactly. If FALSE (the default),
+#' survey_name must be a single character string (one survey name) that can
+#' include wildcarts to allow partial matches
+#'
+#' @return A remote tbl object (collect = FALSE) or a tibble dataframe (collect
+#' = TRUE) with variables RecordingGivid (unique Id), UserReference, Observer, 
+#' QualifierType, QualifierCode, Description, 2nd QualifierCode, 2nd Description, 
+#' 3rd QualifierCode, 3rd Description, Elucidation, in case qualifier is 'NotSure'
+#' , ParentID, QualifierResource
+#'
+#' @importFrom glue glue_sql
+#' @importFrom DBI dbGetQuery
+#' @importFrom assertthat assert_that
+#' @importFrom dplyr collect tbl sql
+#'
+#' @export
+#' @family inboveg
+#' @examples
+#' \dontrun{
+#' con <- connect_inbo_dbase("D0010_00_Cydonia")
+#'
+#' # get the qualifiers from one survey and collect the data
+#' qualifiers_heischraal2012 <- inboveg_qualifiers(con, survey_name =
+#' "MILKLIM_Heischraal2012", collect = TRUE)
+#'
+#' # get all qualifiers from MILKLIM surveys (partial matching), don't collect
+#' qualifiers_milkim <- inboveg_qualifiers(con, survey_name = "%MILKLIM%",
+#' collect = TRUE)
+#'
+#' # get qualifiers from several specific surveys
+#' qualifiers_severalsurveys <- inboveg_qualifiers(con, survey_name =
+#' c("MILKLIM_Heischraal2012", "NICHE Vlaanderen"), multiple = TRUE,
+#' collect = TRUE)
+#'
+#' # get all qualifiers of all surveys,  don't collect the data
+#' allqualifiers <- inboveg_qualifiers(con)
+#'
+#' # Close the connection when done
+#' dbDisconnect(con)
+#' rm(con)
+#' }
+#' 
 
 ## inlezen nodige packages
 library(tidyverse)
@@ -7,286 +65,13 @@ library(glue)
 library(knitr)
 library(odbc)
 library(assertthat)
-# library(dplyr)
+
 library(inborutils)
 
 ## connectie met de 2 databanken
-con <- connect_inbo_dbase("D0010_00_Cydonia")
-con_futon <- connect_inbo_dbase("D0013_00_Futon")
+connection <- connect_inbo_dbase("D0010_00_Cydonia")
 
-## opbouw functie
-#3 aparte queries
-
-## QUERY00 - UNION
-
-# inlezen van de verschillende value-tabellen
-tbl_ftQV      <- tbl(con_futon, from = "ftQualifierValues")
-tbl_ftDQV     <- tbl(con_futon, from = "ftDQualifierValues")
-tbl_ftAbioV   <- tbl(con_futon, from = "ftAbiotiekValues")
-tbl_ftBWKV    <- tbl(con_futon, from = "ftBWKValues")
-tbl_ftCoverV  <- tbl(con_futon, from = "ftCoverValues")
-tbl_ftFenoV   <- tbl(con_futon, from = "ftFenoValues")
-tbl_ftGebiedV <- tbl(con_futon, from = "ftgebiedValues")
-tbl_ftGHCV    <- tbl(con_futon, from = "ftGHCValues")
-tbl_ftLayerV  <- tbl(con_futon, from = "ftLayerValues")
-tbl_ftLFV     <- tbl(con_futon, from = "ftLFValues")
-tbl_ftMngmtV  <- tbl(con_futon, from = "ftMngmtValues")
-tbl_ftPatchV  <- tbl(con_futon, from = "ftPatchValues")
-tbl_ftN2kV    <- tbl(con_futon, from = "ftN2kValues")
-tbl_ftSociaV  <- tbl(con_futon, from = "ftSociaValues")
-tbl_ftSoilV   <- tbl(con_futon, from = "ftSoilValues")
-tbl_ftVitaV   <- tbl(con_futon, from = "ftVitaValues")
-
-# deze union en de drie velden ListGIVID, Code and Description behouden 
-ftValues_union <-
-  union(tbl_ftAbioV
-        , tbl_ftBWKV
-        , tbl_ftCoverV %>% rename(Description = PctValue)
-        , tbl_ftDQV
-        , tbl_ftFenoV
-        , tbl_ftGebiedV
-        , tbl_ftGHCV
-        , tbl_ftLayerV
-        , tbl_ftLFV
-        , tbl_ftMngmtV
-        , tbl_ftN2kV
-        , tbl_ftPatchV
-        , tbl_ftQV
-        , tbl_ftSociaV
-        , tbl_ftSoilV
-        , tbl_ftVitaV
-        ) %>%
-  select(Code, Description, ListGIVID) %>% 
-  collect()
-
-        # #alles in 1 keer werkt niet, dus tabel per tabel
-        # ftValues_union_001 <- 
-        #   union(tbl_ftQV , tbl_ftDQV) %>% 
-        #   select(Code, Description, ListGIVID)
-        # 
-        # ftValues_union_002 <- 
-        #   union(ftValues_union_001, tbl_ftAbioV) %>% 
-        #   select(Code, Description, ListGIVID)
-        # 
-        # ftValues_union_003 <- 
-        #   union(ftValues_union_002, tbl_ftBWKV) %>% 
-        #   select(Code, Description, ListGIVID)
-        # 
-        # # cover heeft geen Description, hier de percentage van cover-codes gebruiken
-        # ftValues_union_004 <- tbl_ftCoverV %>% 
-        #   select(Code , PctValue, ListGIVID) %>%
-        #   rename(Description = PctValue) %>% 
-        #   union(ftValues_union_003, tbl_ftCoverV) %>% 
-        #   select(Code, Description, ListGIVID)
-        # 
-        # ftValues_union_005 <- 
-        #   union(ftValues_union_004, tbl_ftFenoV) %>% 
-        #   select(Code, Description, ListGIVID)
-        # 
-        # ftValues_union_006 <- 
-        #   union(ftValues_union_005, tbl_ftGebiedV) %>% 
-        #   select(Code, Description, ListGIVID)
-        # 
-        # ftValues_union_007 <-
-        #   union(ftValues_union_006, tbl_ftGHCV) %>% 
-        #   select(Code, Description, ListGIVID)
-        # 
-        # ftValues_union_008 <- 
-        #   union(ftValues_union_007, tbl_ftLayerV) %>% 
-        #   select(Code, Description, ListGIVID)
-        # 
-        # ftValues_union_009 <-
-        #   union(ftValues_union_008, tbl_ftLFV) %>% 
-        #   select(Code, Description, ListGIVID)
-        # 
-        # ftValues_union_010 <-
-        #   union(ftValues_union_009, tbl_ftMngmtV) %>% 
-        #   select(Code, Description, ListGIVID)
-        # 
-        # ftValues_union_011 <-
-        #   union(ftValues_union_010, tbl_ftPatchV) %>% 
-        #   select(Code, Description, ListGIVID)
-        # 
-        # ftValues_union_012 <-
-        #   union(ftValues_union_011, tbl_ftN2kV) %>% 
-        #   select(Code, Description, ListGIVID)
-        # 
-        # ftValues_union_013 <- 
-        #   union(ftValues_union_012, tbl_ftSociaV) %>% 
-        #   select(Code, Description, ListGIVID) 
-        # 
-        # # hier gaat het mis, maar hoe kan dat? 
-        # # volledig zelfde opgebouwd als hierboven
-        # # structuur tbl_ftSoilV is zelfde
-        #  ftValues_union_014 <-
-        #   union(ftValues_union_013, tbl_ftSoilV) %>% 
-        #   select(Code, Description, ListGIVID) 
-        # 
-        # ftValues_union_015 <-
-        #   union(ftValues_union_014, tbl_ftVitaV) %>% 
-        #   select(Code, Description, ListGIVID) 
-        # 
-        # ## alles samen bekijken, als 014 en 015 werkt
-        # ftValues_union <- ftValues_union_015 %>% collect()
-
-
-## QUERY01 AC-Values - dit werkt
-
-qry_01ACvalues <- dbGetQuery(con, 
-        "SELECT 
-            ivRLResources.ResourceGIVID
-            , ivRLResources.ActionGroup
-            , ivRLResources.ListName
-            , D0013_00_Futon.dbo.ftActionGroupList.ListGIVID
-        FROM ivRLResources 
-        LEFT JOIN D0013_00_Futon.dbo.ftActionGroupList ON 
-        ivRLResources.ListName = D0013_00_Futon.dbo.ftActionGroupList.ListName 
-                      collate Latin1_General_CI_AI
-        AND ivRLResources.ActionGroup = D0013_00_Futon.dbo.ftActionGroupList.ActionGroup 
-                      collate Latin1_General_CI_AI 
-                ")
-qry_01ACvalues %>% View()
-
-# Linken tabel Ac-Values met de alle Values uit de Value-tables
-Resources_Union <- qry_01ACvalues %>% 
-  left_join(ftValues_union, by = c("ListGIVID" = "ListGIVID"), copy = TRUE) %>% 
-  collect()
- # View()
-
-# lost dit probleem op ? nee
-tbl_Resources_Union <- as.data.frame(Resources_Union)
-str(tbl_Resources_Union)
-# 'data.frame':	4372 obs. of  6 variables:
-#   $ ResourceGIVID: chr  "RS2012052416033749" "RS2012052416033749" "RS2012052416033749" "RS2012052416033749" ...
-# $ ActionGroup  : chr  "abiotiek" "abiotiek" "abiotiek" "abiotiek" ...
-# $ ListName     : chr  "BioHab" "BioHab" "BioHab" "BioHab" ...
-# $ ListGIVID    : chr  "FT2010120314510550" "FT2010120314510550" "FT2010120314510550" "FT2010120314510550" ...
-# $ Code         : chr  "0" "-1" "1.1" "1.2" ...
-# $ Description  : chr  "no record made" "not included in survey" "aquatic - eutrophic" "aquatic - acid" ...
-
-## QUERY02 MSQualifiers per opname
-# Hier nog probleem bij het oproepen van Recources_Union
-# ""Recources_Union" is not a recognized table hints option. If it is intended as a parameter 
-# to a table-valued function or to the CHANGETABLE function, ensure that your database compatibility mode is set to 
-
-Releve_Qualifiers <- dbGetQuery(con,
-  "SELECT 
-       ivRecording.RecordingGivid
-     , ivRecording.UserReference
-     , ivRecording.Observer
-     , ivRLQualifier.QualifierType
-     , ivRLQualifier.QualifierCode
-     , ivRLQualifier_1.QualifierCode as QualifierCode_1
-     , ivRLQualifier_2.QualifierCode as QualifierCode_2
-     , ivRLQualifier.Elucidation
-     , ivRLQualifier.NotSure
-     , ivRLQualifier.ParentID
-     , ivRLQualifier.QualifierResource
-     , ivRLQualifier_1.QualifierResource as QualifierResource_1
-     , ivRLQualifier_2.QualifierResource as QualifierResource_2
-     , tbl_Resources_Union.Description
-  FROM ivRecording
-  LEFT JOIN ivRLQualifier ON ivRecording.Id = ivRLQualifier.RecordingID 
-  LEFT JOIN ivRLQualifier AS ivRLQualifier_1 ON ivRLQualifier.ID = ivRLQualifier_1.ParentID
-  LEFT JOIN ivRLQualifier AS ivRLQualifier_2 ON ivRLQualifier_1.ID = ivRLQualifier_2.ParentID
-  LEFT_JOIN tbl_Resources_Union ON ivRLQualifier.Code = tbl_Resources_Union.Code
-  AND ivRLQualifier.QualifierResource = tbl_Resources_Union.ResourceGIVID;")
-
-# , Recources_Union_1.Description
-# , Recources_Union_2.Description
-# 
-#   WHERE (((ivRLQualifier.ParentID) Is Null))
-#   ORDER BY ivRecording.UserReference, ivRLQualifier.QualifierType, ivRLQualifier.QualifierCode;")
-
-## dit werkt wel 
-Releve_Qualifiers_2 <- Releve_Qualifiers %>% 
-  left_join(Resources_Union, by = c("QualifierCode" = "Code")) %>% 
-  left_join(Resources_Union, by = c("QualifierResource" = "ResourceGIVID"))
-             
-# LEFT JOIN Resources_Union ON ivRLQualifier.QualifierCode = Resources_Union.Code
-#   AND ivRLQualifier.QualifierResource = Resources_Union.ResourceGIVID")
-# 
-# 
-#   LEFT JOIN Resources_Union AS Resources_Union_1 ON 
-#                    (ivRLQualifier_1.QualifierCode = Resources_Union_1.Code)
-#       AND (ivRLQualifier_1.QualifierResource = Resources_Union_1.ResourceGIVID) 
-#   LEFT JOIN Resources_Union AS Resources_Union_2 ON 
-#                    (ivRLQualifier_2.QualifierCode = Resources_Union_2.Code)
-#       AND (ivRLQualifier_2.QualifierResource = Resources_Union.ResourceGIVID)
-
-## 2de poging
-Releve_Qualifiers <- dbGetQuery(con,
-                                "SELECT 
-                                ivRLQualifier.QualifierType
-                                , ivRLQualifier.QualifierCode
-                                , ivRLQualifier.Elucidation
-                                , ivRLQualifier.NotSure
-                                , ivRLQualifier.ParentID
-                                , ivRLQualifier.QualifierResource
-                                , tbl_Resources_Union.Description
-                                FROM ivRLQualifier
-                                LEFT_JOIN (tbl_Resources_Union ON ivRLQualifier.QualifierCode = tbl_Resources_Union.Code
-                                AND ivRLQualifier.QualifierResource = tbl_Resources_Union.ResourceGIVID) ;")
-
-# , Recources_Union_1.Description
-# , Recources_Union_2.Description
-# 
-#   WHERE (((ivRLQualifier.ParentID) Is Null))
-#   ORDER BY ivRecording.UserReference, ivRLQualifier.QualifierType, ivRLQualifier.QualifierCode;")
-
-## dit werkt wel 
-Releve_Qualifiers_2 <- Releve_Qualifiers %>% 
-  left_join(Resources_Union, by = c("QualifierCode" = "Code")) %>% 
-  left_join(Resources_Union, by = c("QualifierResource" = "ResourceGIVID"))
-
-# 
-# 
-# LEFT JOIN Resources_Union ON ivRLQualifier.QualifierCode = Resources_Union.Code
-# AND ivRLQualifier.QualifierResource = Resources_Union.ResourceGIVID")
-# 
-# 
-#   LEFT JOIN Resources_Union AS Resources_Union_1 ON 
-#                    (ivRLQualifier_1.QualifierCode = Resources_Union_1.Code)
-#       AND (ivRLQualifier_1.QualifierResource = Resources_Union_1.ResourceGIVID) 
-#   LEFT JOIN Resources_Union AS Resources_Union_2 ON 
-#                    (ivRLQualifier_2.QualifierCode = Resources_Union_2.Code)
-#       AND (ivRLQualifier_2.QualifierResource = Resources_Union.ResourceGIVID)
-
-
-
-
-Releve_Qualifiers %>%  view()
-
-##### origineel uit accesfronted view
-origineel <- "SELECT 
-  ivRecording.RecordingGivid
-, ivRecording.UserReference
-, ivRecording.Observer
-, ivRLQualifier.QualifierType
-, ivRLQualifier.QualifierCode
-, qry_01ACvalues.oms
-, ivRLQualifier_1.QualifierCode
-, qry_01ACvalues_1.oms
-, ivRLQualifier_2.QualifierCode
-, qry_01ACvalues_2.oms
-, ivRLQualifier.Elucidation
-, ivRLQualifier.NotSure
-, ivRLQualifier.ParentID
-FROM (((((ivRecording 
-          LEFT JOIN ivRLQualifier ON ivRecording.Id = ivRLQualifier.RecordingID)
-         LEFT JOIN ivRLQualifier AS ivRLQualifier_1 ON ivRLQualifier.ID = ivRLQualifier_1.ParentID)
-        LEFT JOIN ivRLQualifier AS ivRLQualifier_2 ON ivRLQualifier_1.ID = ivRLQualifier_2.ParentID) 
-       LEFT JOIN qry_01ACvalues ON (ivRLQualifier.QualifierCode = qry_01ACvalues.Code)
-       AND (ivRLQualifier.QualifierResource = qry_01ACvalues.ResourceGIVID)) 
-      LEFT JOIN qry_01ACvalues AS qry_01ACvalues_1 ON (ivRLQualifier_1.QualifierCode = qry_01ACvalues_1.Code) 
-      AND (ivRLQualifier_1.QualifierResource = qry_01ACvalues_1.ResourceGIVID)) 
-LEFT JOIN qry_01ACvalues AS qry_01ACvalues_2 ON (ivRLQualifier_2.QualifierCode = qry_01ACvalues_2.Code) 
-AND (ivRLQualifier_2.QualifierResource = qry_01ACvalues_2.ResourceGIVID)
-WHERE (((ivRLQualifier.ParentID) Is Null))
-ORDER BY ivRecording.UserReference, ivRLQualifier.QualifierType, ivRLQualifier.QualifierCode;"
-
-
-## functie opbouwen - nog uitwerken, eerst hier boven in orde krijgen.
+## functie opbouwen
 
 inboveg_qualifiers <- function(connection,
                                         survey_name,
@@ -313,26 +98,46 @@ inboveg_qualifiers <- function(connection,
     }
   }
   
-  common_part <- "SELECT 
-                      ivRecording.RecordingGivid
-                      , ivRecording.UserReference
-                      , ivRLHeadInfoD.MoistureCode
-                      , qry_01ACvalues_1.oms
-                      , ivRLHeadInfoD.GenHabCatCode
-                      , qry_01ACvalues.oms
-                  FROM (
-                   (ivRLHeadInfoD 
-            RIGHT JOIN ivRecording ON ivRLHeadInfoD.RecordingID = ivRecording.Id) 
-            LEFT JOIN qry_01ACvalues AS qry_01ACvalues_1 ON (ivRLHeadInfoD.MoistureCode = qry_01ACvalues_1.Code) 
-            AND (ivRLHeadInfoD.MoistureResource = qry_01ACvalues_1.ResourceGIVID)) 
-            LEFT JOIN qry_01ACvalues ON (ivRLHeadInfoD.GenHabCatCode = qry_01ACvalues.Code) 
-            AND (ivRLHeadInfoD.GenHabCatResource = qry_01ACvalues.ResourceGIVID)
-            ORDER BY ivRecording.RecordingGivid;"
-            
- }
-
-
- if (!multiple) {
+  common_part <- "SELECT ivS.Name
+                            , ivR.RecordingGivid
+                            , ivR.UserReference
+                            , ivR.Observer
+                            , ivRLQ.QualifierType
+                            , ivRLQ.QualifierCode 
+                            , ftACV.Description
+                            , ivRLQ_P.QualifierCode
+                            , ftACV_P.Description
+                            , ivRLQ_GP.QualifierCode
+                            , ftACV_GP.Description
+                            , ivRLQ.Elucidation
+                            , ivRLQ.NotSure
+                            , ivRLQ.ParentID
+                            , ivRLQ.QualifierResource
+                  FROM  dbo.ivSurvey ivS
+                  INNER JOIN dbo.ivRecording ivR  ON ivR.SurveyId = ivS.Id
+                  LEFT JOIN dbo.ivRLQualifier ivRLQ ON ivRLQ.RecordingID = ivR.Id 
+                  LEFT JOIN dbo.ivRLResources ivRLR ON ivRLR.ResourceGIVID = ivRLQ.QualifierResource
+                  LEFT JOIN dbo.ivRLQualifier ivRLQ_P ON ivRLQ_P.ParentID = ivRLQ.ID 
+                  LEFT JOIN dbo.ivRLResources ivRLR_P ON ivRLR_P.ResourceGIVID = ivRLQ_P.QualifierResource
+                  LEFT JOIN dbo.ivRLQualifier ivRLQ_GP ON ivRLQ_GP.ParentID = ivRLQ_P.ID 
+                  LEFT JOIN dbo.ivRLResources ivRLR_GP ON ivRLR_GP.ResourceGIVID = ivRLQ_GP.QualifierResource
+                  LEFT JOIN [syno].[Futon_dbo_ftActionGroupValues] ftACV ON ftACV.Code = ivRLQ.QualifierCode COLLATE Latin1_General_CI_AI
+                  AND ftACV.ActionGroup = ivRLR.ActionGroup  COLLATE Latin1_General_CI_AI 
+                  AND ftACV.ListName = ivRLR.ListName  COLLATE Latin1_General_CI_AI
+                            
+                  LEFT JOIN [syno].[Futon_dbo_ftActionGroupValues] ftACV_P ON ftACV_P.Code = ivRLQ_P.QualifierCode  COLLATE Latin1_General_CI_AI
+                  AND ftACV_P.ActionGroup = ivRLR_P.ActionGroup  COLLATE Latin1_General_CI_AI
+                  AND ftACV_P.ListName = ivRLR_P.ListName  COLLATE Latin1_General_CI_AI
+                      
+                  LEFT JOIN [syno].[Futon_dbo_ftActionGroupValues] ftACV_GP ON ftACV_GP.Code = ivRLQ_GP.QualifierCode  COLLATE Latin1_General_CI_AI
+                  AND ftACV_GP.ActionGroup = ivRLR_GP.ActionGroup  COLLATE Latin1_General_CI_AI
+                  AND ftACV_GP.ListName = ivRLR_GP.ListName  COLLATE Latin1_General_CI_AI
+                            
+                  WHERE ivRLQ.ParentID Is Null
+                 ORDER BY ivR.UserReference, ivRLQ.QualifierType, ivRLQ.QualifierCode;"
+  
+  
+  if (!multiple) {
     sql_statement <- glue_sql(common_part,
                               "AND ivS.Name LIKE {survey_name}",
                               survey_name = survey_name,
@@ -353,44 +158,12 @@ inboveg_qualifiers <- function(connection,
     query_result <- collect(query_result)
     return(query_result)
   }
+}
+  
+  
+## testen
+qualifiers_heischraal2012 <- inboveg_qualifiers(con, survey_name = "MILKLIM_Heischraal2012", collect = TRUE)
+qualifiers_milkim <- inboveg_qualifiers(con, survey_name = "%MILKLIM%", collect = TRUE)
+qualifiers_severalsurveys <- inboveg_qualifiers(con, survey_name = c("MILKLIM_Heischraal2012", "NICHE Vlaanderen"), multiple = TRUE, collect = TRUE)
+allqualifiers <- inboveg_qualifiers(con)
 
-
-## Query03 Origineel uit mSQLsms
-
-testje <- glue_sql(con , "SELECT 
-  ivRecording.RecordingGivid
-, ivRecording.UserReference
-, ivRecording.Observer
-, ivRLQualifier.QualifierType
-, ivRLQualifier.QualifierCode
-, qry_01ACvalues.oms ## dit komt uit query01
-, ivRLQualifier_1.QualifierCode
-, qry_01ACvalues_1.oms  ## dit komt uit query01
-, ivRLQualifier_2.QualifierCode
-, qry_01ACvalues_2.oms  ## dit komt uit query01
-, ivRLQualifier.Elucidation
-, ivRLQualifier.NotSure
-, ivRLQualifier.ParentID
-FROM (((((ivRecording 
-LEFT JOIN ivRLQualifier ON ivRecording.Id = ivRLQualifier.RecordingID) 
-LEFT JOIN ivRLQualifier AS ivRLQualifier_1 ON 
-          ivRLQualifier.ID = ivRLQualifier_1.ParentID) 
-LEFT JOIN ivRLQualifier AS ivRLQualifier_2 ON 
-          ivRLQualifier_1.ID = ivRLQualifier_2.ParentID) 
-LEFT JOIN qry_01ACvalues ON (ivRLQualifier.QualifierCode = qry_01ACvalues.Code) 
-          AND (ivRLQualifier.QualifierResource = qry_01ACvalues.ResourceGIVID)) 
-LEFT JOIN qry_01ACvalues AS qry_01ACvalues_1 ON 
-          (ivRLQualifier_1.QualifierCode = qry_01ACvalues_1.Code) 
-          AND (ivRLQualifier_1.QualifierResource = qry_01ACvalues_1.ResourceGIVID)) 
-LEFT JOIN qry_01ACvalues AS qry_01ACvalues_2 ON 
-          (ivRLQualifier_2.QualifierCode = qry_01ACvalues_2.Code) 
-          AND (ivRLQualifier_2.QualifierResource = qry_01ACvalues_2.ResourceGIVID)
-WHERE (((ivRLQualifier.ParentID) Is Null))
-ORDER BY ivRecording.UserReference, ivRLQualifier.QualifierType, ivRLQualifier.QualifierCode;"
-  ,.con = con)
-  
-  
-  
-  
-  
-  
