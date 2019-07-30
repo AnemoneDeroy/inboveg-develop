@@ -104,8 +104,8 @@ inboveg_qualifiers <- function(connection,
     }
   }
   
-  common_part <- "SELECT ivR.RecordingGivid
-                            , ivS.Name 
+  common_part <- "SELECT ivS.Name 
+                            , ivR.RecordingGivid
                             , ivR.UserReference
                             , ivR.Observer
                             , ivRLQ.QualifierType
@@ -167,18 +167,54 @@ inboveg_qualifiers <- function(connection,
 }
   
   
-## testen - er zit fout in query
+## testen - er zit fout in query, view table [syno].[Futon_dbo_ftActionGroupValues]? 
 qualifiers_heischraal2012 <- inboveg_qualifiers(con, survey_name = "MILKLIM_Heischraal2012", collect = TRUE)
 qualifiers_milkim <- inboveg_qualifiers(con, survey_name = "%MILKLIM%", collect = TRUE)
 qualifiers_severalsurveys <- inboveg_qualifiers(con, survey_name = c("MILKLIM_Heischraal2012", "NICHE Vlaanderen"), multiple = TRUE, collect = TRUE)
 allqualifiers <- inboveg_qualifiers(con)
 
 
-
-tblACvalue <- tbl(con, from = "[syno].[Futon_dbo_ftActionGroupValues]")
-class(tblACvalue)
-TenRows <- tblACvalue %>% 
+## werkt dus wel, kan opgehaald worden ... 
+tblACvalue <- dbGetQuery(con, "SELECT * FROM [syno].[Futon_dbo_ftActionGroupValues]") %>% 
   top_n(10)
 
 
-
+## dit lukt wel, dus fout moet in functie zitten ... 
+Qualifiers_Survey <- dbGetQuery(con, "SELECT ivR.RecordingGivid
+                            , ivS.Name 
+                            , ivR.UserReference
+                            , ivR.Observer
+                            , ivRLQ.QualifierType
+                            , ivRLQ.QualifierCode 
+                            , ftACV.Description
+                            , ivRLQ_P.QualifierCode
+                            , ftACV_P.Description
+                            , ivRLQ_GP.QualifierCode
+                            , ftACV_GP.Description
+                            , ivRLQ.Elucidation
+                            , ivRLQ.NotSure
+                            , ivRLQ.ParentID
+                            , ivRLQ.QualifierResource
+                  FROM  dbo.ivSurvey ivS
+                  INNER JOIN dbo.ivRecording ivR  ON ivR.SurveyId = ivS.Id
+                  LEFT JOIN dbo.ivRLQualifier ivRLQ ON ivRLQ.RecordingID = ivR.Id 
+                  LEFT JOIN dbo.ivRLResources ivRLR ON ivRLR.ResourceGIVID = ivRLQ.QualifierResource
+                  LEFT JOIN dbo.ivRLQualifier ivRLQ_P ON ivRLQ_P.ParentID = ivRLQ.ID 
+                  LEFT JOIN dbo.ivRLResources ivRLR_P ON ivRLR_P.ResourceGIVID = ivRLQ_P.QualifierResource
+                  LEFT JOIN dbo.ivRLQualifier ivRLQ_GP ON ivRLQ_GP.ParentID = ivRLQ_P.ID 
+                  LEFT JOIN dbo.ivRLResources ivRLR_GP ON ivRLR_GP.ResourceGIVID = ivRLQ_GP.QualifierResource
+                  LEFT JOIN [syno].[Futon_dbo_ftActionGroupValues] ftACV ON ftACV.Code = ivRLQ.QualifierCode COLLATE Latin1_General_CI_AI
+                  AND ftACV.ActionGroup = ivRLR.ActionGroup  COLLATE Latin1_General_CI_AI 
+                  AND ftACV.ListName = ivRLR.ListName  COLLATE Latin1_General_CI_AI
+                            
+                  LEFT JOIN [syno].[Futon_dbo_ftActionGroupValues] ftACV_P ON ftACV_P.Code = ivRLQ_P.QualifierCode  COLLATE Latin1_General_CI_AI
+                  AND ftACV_P.ActionGroup = ivRLR_P.ActionGroup  COLLATE Latin1_General_CI_AI
+                  AND ftACV_P.ListName = ivRLR_P.ListName  COLLATE Latin1_General_CI_AI
+                      
+                  LEFT JOIN [syno].[Futon_dbo_ftActionGroupValues] ftACV_GP ON ftACV_GP.Code = ivRLQ_GP.QualifierCode  COLLATE Latin1_General_CI_AI
+                  AND ftACV_GP.ActionGroup = ivRLR_GP.ActionGroup  COLLATE Latin1_General_CI_AI
+                  AND ftACV_GP.ListName = ivRLR_GP.ListName  COLLATE Latin1_General_CI_AI
+                      
+                  WHERE ivRLQ.ParentID Is Null
+                  AND ivS.Name = 'ZLB'
+                  ORDER BY ivR.UserReference, ivRLQ.QualifierType, ivRLQ.QualifierCode")
