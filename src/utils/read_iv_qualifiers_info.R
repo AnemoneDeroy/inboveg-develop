@@ -58,6 +58,10 @@
 #' }
 #' 
 
+##############################################################
+## hier code eerst testen, dus wel inlezen packages, connectie maken .
+# dit deel later verwijderen in inborutils
+
 ## inlezen nodige packages
 library(tidyverse)
 library(DBI)
@@ -69,9 +73,11 @@ library(assertthat)
 library(inborutils)
 
 ## connectie met de 2 databanken
-connection <- connect_inbo_dbase("D0010_00_Cydonia")
+con <- connect_inbo_dbase("D0010_00_Cydonia")
 
 ## functie opbouwen
+# deel hierboven later verwijderen in inborutils
+###############################################################
 
 inboveg_qualifiers <- function(connection,
                                         survey_name,
@@ -98,8 +104,8 @@ inboveg_qualifiers <- function(connection,
     }
   }
   
-  common_part <- "SELECT ivS.Name
-                            , ivR.RecordingGivid
+  common_part <- "SELECT ivR.RecordingGivid
+                            , ivS.Name 
                             , ivR.UserReference
                             , ivR.Observer
                             , ivRLQ.QualifierType
@@ -134,7 +140,7 @@ inboveg_qualifiers <- function(connection,
                   AND ftACV_GP.ListName = ivRLR_GP.ListName  COLLATE Latin1_General_CI_AI
                             
                   WHERE ivRLQ.ParentID Is Null
-                 ORDER BY ivR.UserReference, ivRLQ.QualifierType, ivRLQ.QualifierCode;"
+                 ORDER BY ivR.UserReference, ivRLQ.QualifierType, ivRLQ.QualifierCode"
   
   
   if (!multiple) {
@@ -161,9 +167,18 @@ inboveg_qualifiers <- function(connection,
 }
   
   
-## testen
+## testen - er zit fout in query
 qualifiers_heischraal2012 <- inboveg_qualifiers(con, survey_name = "MILKLIM_Heischraal2012", collect = TRUE)
 qualifiers_milkim <- inboveg_qualifiers(con, survey_name = "%MILKLIM%", collect = TRUE)
 qualifiers_severalsurveys <- inboveg_qualifiers(con, survey_name = c("MILKLIM_Heischraal2012", "NICHE Vlaanderen"), multiple = TRUE, collect = TRUE)
 allqualifiers <- inboveg_qualifiers(con)
+
+
+
+tblACvalue <- tbl(con, from = "[syno].[Futon_dbo_ftActionGroupValues]")
+class(tblACvalue)
+TenRows <- tblACvalue %>% 
+  top_n(10)
+
+
 
