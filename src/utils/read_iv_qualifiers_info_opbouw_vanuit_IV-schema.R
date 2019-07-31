@@ -998,4 +998,98 @@ testje <- dbGetQuery(con,"SELECT
                    ORDER BY ivR.UserReference, ivRLQ.QualifierType, ivRLQ.QualifierCode")
 
 
+## functie testen met recordingGIVID ipv survey_name
   
+
+inboveg_qualifiers_Rec <- function(connection,
+                                   RecordingGivid,
+                                collect = FALSE,
+                                multiple = FALSE) {
+  
+  assert_that(inherits(connection, what = "Microsoft SQL Server"),
+              msg = "Not a connection object to database.")
+  
+  if (missing(RecordingGivid) & !multiple) {
+    RecordingGivid <- "%"
+  }
+  
+  if (missing(RecordingGivid) & multiple) {
+    stop("Please provide one or more survey names to survey_name when multiple
+         = TRUE")
+  }
+  
+  if (!missing(RecordingGivid)) {
+    if (!multiple) {
+      assert_that(is.character(RecordingGivid))
+    } else {
+      assert_that(is.vector(RecordingGivid, mode = "character"))
+    }
+  }
+  
+  common_part <- "SELECT ivS.Name 
+  , ivR.RecordingGivid
+  , ivR.UserReference
+  , ivR.Observer
+  , ivRLQ.QualifierType
+  , ivRLQ.QualifierCode 
+  , ftACV.Description
+  , ivRLQ_P.QualifierCode
+  , ftACV_P.Description
+  , ivRLQ_GP.QualifierCode
+  , ftACV_GP.Description
+  , ivRLQ.Elucidation
+  , ivRLQ.NotSure
+  , ivRLQ.ParentID
+  , ivRLQ.QualifierResource
+  FROM  dbo.ivSurvey ivS
+  INNER JOIN dbo.ivRecording ivR  ON ivR.SurveyId = ivS.Id
+  LEFT JOIN dbo.ivRLQualifier ivRLQ ON ivRLQ.RecordingID = ivR.Id 
+  LEFT JOIN dbo.ivRLResources ivRLR ON ivRLR.ResourceGIVID = ivRLQ.QualifierResource
+  LEFT JOIN dbo.ivRLQualifier ivRLQ_P ON ivRLQ_P.ParentID = ivRLQ.ID 
+  LEFT JOIN dbo.ivRLResources ivRLR_P ON ivRLR_P.ResourceGIVID = ivRLQ_P.QualifierResource
+  LEFT JOIN dbo.ivRLQualifier ivRLQ_GP ON ivRLQ_GP.ParentID = ivRLQ_P.ID 
+  LEFT JOIN dbo.ivRLResources ivRLR_GP ON ivRLR_GP.ResourceGIVID = ivRLQ_GP.QualifierResource
+  LEFT JOIN [syno].[Futon_dbo_ftActionGroupValues] ftACV ON ftACV.Code = ivRLQ.QualifierCode COLLATE Latin1_General_CI_AI
+  AND ftACV.ActionGroup = ivRLR.ActionGroup  COLLATE Latin1_General_CI_AI 
+  AND ftACV.ListName = ivRLR.ListName  COLLATE Latin1_General_CI_AI
+  
+  LEFT JOIN [syno].[Futon_dbo_ftActionGroupValues] ftACV_P ON ftACV_P.Code = ivRLQ_P.QualifierCode  COLLATE Latin1_General_CI_AI
+  AND ftACV_P.ActionGroup = ivRLR_P.ActionGroup  COLLATE Latin1_General_CI_AI
+  AND ftACV_P.ListName = ivRLR_P.ListName  COLLATE Latin1_General_CI_AI
+  
+  LEFT JOIN [syno].[Futon_dbo_ftActionGroupValues] ftACV_GP ON ftACV_GP.Code = ivRLQ_GP.QualifierCode  COLLATE Latin1_General_CI_AI
+  AND ftACV_GP.ActionGroup = ivRLR_GP.ActionGroup  COLLATE Latin1_General_CI_AI
+  AND ftACV_GP.ListName = ivRLR_GP.ListName  COLLATE Latin1_General_CI_AI
+  
+  WHERE ivRLQ.ParentID Is Null"
+  
+  
+  if (!multiple) {
+    sql_statement <- glue_sql(common_part,
+                              "AND ivR.RecordingGivid LIKE {RecordingGivid}",
+                              RecordingGivid = RecordingGivid,
+                              .con = connection)
+    
+  } else {
+    sql_statement <- glue_sql(common_part,
+                              "AND ivR.RecordingGivid IN ({RecordingGivid*})",
+                              RecordingGivid = RecordingGivid,
+                              .con = connection)
+  }
+  
+  query_result <- tbl(connection, sql(sql_statement))
+  
+  if (!isTRUE(collect)) {
+    return(query_result)
+  } else {
+    query_result <- collect(query_result)
+    return(query_result)
+  }
+}
+  
+  
+## testen - er zit fout in query, view table [syno].[Futon_dbo_ftActionGroupValues]? 
+qualifiers_heischraal2012 <- inboveg_qualifiers_Rec(con, RecordingGivid = "IV2012061415541025", collect = TRUE)
+qualifiers_milkim <- inboveg_qualifiers_Rec(con, RecordingGivid = "IV201206141554", collect = TRUE)
+qualifiers_severalsurveys <- inboveg_qualifiers_Rec(con, RecordingGivid = c("IV2012061415541025", "IV2012060816312238"), multiple = TRUE, collect = TRUE)
+allqualifiers <- inboveg_qualifiers_Rec(con)
