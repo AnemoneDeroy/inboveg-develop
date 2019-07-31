@@ -140,7 +140,7 @@ inboveg_qualifiers <- function(connection,
                   AND ftACV_GP.ListName = ivRLR_GP.ListName  COLLATE Latin1_General_CI_AI
                             
                   WHERE ivRLQ.ParentID Is Null
-                 ORDER BY ivR.UserReference, ivRLQ.QualifierType, ivRLQ.QualifierCode"
+                  ORDER BY ivR.UserReference, ivRLQ.QualifierType, ivRLQ.QualifierCode"
   
   
   if (!multiple) {
@@ -218,3 +218,6 @@ Qualifiers_Survey <- dbGetQuery(con, "SELECT ivR.RecordingGivid
                   WHERE ivRLQ.ParentID Is Null
                   AND ivS.Name = 'ZLB'
                   ORDER BY ivR.UserReference, ivRLQ.QualifierType, ivRLQ.QualifierCode")
+
+##☻ kan fout zitten in laatste deeltje functie -- Nope
+## ORDER BY ivR.UserReference, ivRLQ.QualifierType, ivRLQ.QualifierCode
