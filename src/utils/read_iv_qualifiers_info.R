@@ -73,7 +73,7 @@ library(assertthat)
 library(inborutils)
 
 ## connectie met de 2 databanken
-con <- connect_inbo_dbase("D0010_00_Cydonia")
+connection <- connect_inbo_dbase("D0010_00_Cydonia")
 
 ## functie opbouwen
 # deel hierboven later verwijderen in inborutils
@@ -139,8 +139,7 @@ inboveg_qualifiers <- function(connection,
                   AND ftACV_GP.ActionGroup = ivRLR_GP.ActionGroup  COLLATE Latin1_General_CI_AI
                   AND ftACV_GP.ListName = ivRLR_GP.ListName  COLLATE Latin1_General_CI_AI
                             
-                  WHERE ivRLQ.ParentID Is Null
-                  ORDER BY ivR.UserReference, ivRLQ.QualifierType, ivRLQ.QualifierCode"
+                  WHERE ivRLQ.ParentID Is Null"
   
   
   if (!multiple) {
@@ -168,19 +167,19 @@ inboveg_qualifiers <- function(connection,
   
   
 ## testen - er zit fout in query, view table [syno].[Futon_dbo_ftActionGroupValues]? 
-qualifiers_heischraal2012 <- inboveg_qualifiers(con, survey_name = "MILKLIM_Heischraal2012", collect = TRUE)
-qualifiers_milkim <- inboveg_qualifiers(con, survey_name = "%MILKLIM%", collect = TRUE)
-qualifiers_severalsurveys <- inboveg_qualifiers(con, survey_name = c("MILKLIM_Heischraal2012", "NICHE Vlaanderen"), multiple = TRUE, collect = TRUE)
-allqualifiers <- inboveg_qualifiers(con)
+qualifiers_heischraal2012 <- inboveg_qualifiers(connection, survey_name = "MILKLIM_Heischraal2012", collect = TRUE)
+qualifiers_milkim <- inboveg_qualifiers(connection, survey_name = "%MILKLIM%", collect = TRUE)
+qualifiers_severalsurveys <- inboveg_qualifiers(connection, survey_name = c("MILKLIM_Heischraal2012", "NICHE Vlaanderen"), multiple = TRUE, collect = TRUE)
+allqualifiers <- inboveg_qualifiers(connection)
 
 
 ## werkt dus wel, kan opgehaald worden ... 
-tblACvalue <- dbGetQuery(con, "SELECT * FROM [syno].[Futon_dbo_ftActionGroupValues]") %>% 
+tblACvalue <- dbGetQuery(connection, "SELECT * FROM [syno].[Futon_dbo_ftActionGroupValues]") %>% 
   top_n(10)
 
 
 ## dit lukt wel, dus fout moet in functie zitten ... 
-Qualifiers_Survey <- dbGetQuery(con, "SELECT ivR.RecordingGivid
+Qualifiers_Survey <- dbGetQuery(connection, "SELECT ivR.RecordingGivid
                             , ivS.Name 
                             , ivR.UserReference
                             , ivR.Observer
@@ -219,5 +218,11 @@ Qualifiers_Survey <- dbGetQuery(con, "SELECT ivR.RecordingGivid
                   AND ivS.Name = 'ZLB'
                   ORDER BY ivR.UserReference, ivRLQ.QualifierType, ivRLQ.QualifierCode")
 
+Qualifiers_Survey %>%  view()
+
 ##☻ kan fout zitten in laatste deeltje functie -- Nope
 ## ORDER BY ivR.UserReference, ivRLQ.QualifierType, ivRLQ.QualifierCode
+
+debugonce(inboveg_qualifiers)
+
+qualifiers_heischraal2012 <- inboveg_qualifiers(connection, survey_name = "MILKLIM_Heischraal2012", collect = TRUE)
