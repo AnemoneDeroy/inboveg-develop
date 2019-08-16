@@ -220,9 +220,8 @@ Qualifiers_Survey <- dbGetQuery(connection, "SELECT ivR.RecordingGivid
 
 Qualifiers_Survey %>%  view()
 
-##☻ kan fout zitten in laatste deeltje functie -- Nope
+## kan fout zitten in laatste deeltje functie -- Nope
 ## ORDER BY ivR.UserReference, ivRLQ.QualifierType, ivRLQ.QualifierCode
 
 debugonce(inboveg_qualifiers)
-
 qualifiers_heischraal2012 <- inboveg_qualifiers(connection, survey_name = "MILKLIM_Heischraal2012", collect = TRUE)
