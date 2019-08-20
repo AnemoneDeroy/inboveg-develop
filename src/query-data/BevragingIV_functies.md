@@ -22,10 +22,10 @@ In this tutorial we make functions available to query data directly from
 the INBOVEG SQL-server database. This to avoid writing your own queries
 or to copy/paste them from the access-frontend for INBOVEG.
 
-We have provided functions to query -survey (INBOVEG-projects)
--recordings (vegetation relevés) -metadata of recordings (header info)
--classification (Natura2000 or local classification like BWK)
--qualifiers (management and site characteristics)
+We have provided functions to query \* survey (INBOVEG-projects) \*
+recordings (vegetation relevés) \* metadata of recordings (header info)
+\* classification (Natura2000 or local classification like BWK) \*
+qualifiers (management and site characteristics)
 
 Packages and connection
 -----------------------
@@ -90,17 +90,23 @@ Functionality
 
 ### Survey information
 
-This function 'inboveg\_survey' queries the INBOVEG database for survey
+The function 'inboveg\_survey' queries the INBOVEG database for survey
 information (metadata about surveys) for one or more survey(s) by the
 name of the survey.
 
 #### Examples
 
-get information of a specific survey and collect data survey\_info &lt;-
-inboveg\_survey(con, survey\_name = "OudeLanden\_1979", collect = TRUE)
+get information of a specific survey and collect data
 
-get information of all surveys and collect data allsurveys &lt;-
-inboveg\_survey(con)
+    survey_info <- inboveg_survey(con, survey_name = "OudeLanden_1979", collect = TRUE)
+
+get information of all surveys and collect data
+
+    allsurveys <- inboveg_survey(con)
+
+only a part of the survey name is known?
+
+    partsurveys <- inboveg_survey(con, survey = "%MILKLIM%")
 
 ### Recording information
 
@@ -111,20 +117,25 @@ which vegetation layers with which cover) for one or more surveys.
 #### Examples
 
 get the relevés from one survey and collect the data
-recording\_heischraal2012 &lt;- inboveg\_recordings(con, survey\_name =
-"MILKLIM\_Heischraal2012", collect = TRUE)
+
+    recording_heischraal2012 <- inboveg_recordings(con, survey_name = 
+    "MILKLIM_Heischraal2012", collect = TRUE)
 
 get all recordings from MILKLIM surveys (partial matching), don't
-collect recording\_milkim &lt;- inboveg\_recordings(con, survey\_name =
-"%MILKLIM%", collect = TRUE)
+collect
 
-get recordings from several specific surveys recording\_severalsurveys
-&lt;- inboveg\_recordings(con, survey\_name =
-c("MILKLIM\_Heischraal2012", "NICHE Vlaanderen"), multiple = TRUE,
-collect = TRUE)
+    recording_milkim <- inboveg_recordings(con, survey_name = "%MILKLIM%",
+    collect = TRUE)
 
-get all relevés of all surveys, don't collect the data allrecordings
-&lt;- inboveg\_recordings(con)
+get recordings from several specific surveys
+
+    recording_severalsurveys <- inboveg_recordings(con, survey_name =
+    c("MILKLIM_Heischraal2012", "NICHE Vlaanderen"), multiple = TRUE,
+    collect = TRUE)
+
+get all relevés of all surveys, don't collect the data
+
+    allrecordings <- inboveg_recordings(con)
 
 ### Header information
 
@@ -135,12 +146,14 @@ survey and the recorder type.
 #### Examples
 
 get header information from a specific survey and a specific recording
-type and collect the data header\_info &lt;- inboveg\_header(con,
-survey\_name = "OudeLanden\_1979", rec\_type = "Classic", collect =
-TRUE)
+type and collect the data
+
+    header_info <- inboveg_header(con, survey_name = "OudeLanden_1979",
+    rec_type = "Classic", collect = TRUE)
 
 get header information of all surveys, don't collect the data
-all\_header\_info &lt;- inboveg\_header(con)
+
+    all_header_info <- inboveg_header(con)
 
 ### Classification information
 
@@ -151,15 +164,22 @@ relevé for one or more survey(s) by the name of the survey.
 #### Examples
 
 get a specific classification from a survey and collect the data
-classif\_info &lt;- inboveg\_classification(con, survey\_name =
-"MILKLIM\_Heischraal2012", classif = "4010", collect = TRUE)
 
-get all surveys, all classifications, don't collect the data allecodes
-&lt;- inboveg\_classification(con)
+    classif_info <- inboveg_classification(con, 
+    survey_name = "MILKLIM_Heischraal2012", classif = "4010", collect = TRUE)
+
+get all surveys, all classifications, don't collect the data
+
+    allecodes <- inboveg_classification(con)
 
 ### Qualifiers information
 
 Nog uitwerken, eerst functie in orde krijgen
+
+More complex queries
+--------------------
+
+These functions gives the basis information out of INBOVEG.
 
 <!-- ### hieronder de oude versie -->
 <!-- # Retrieving data -->
