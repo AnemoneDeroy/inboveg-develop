@@ -81,7 +81,6 @@ connection <- connect_inbo_dbase("D0010_00_Cydonia")
 
 inboveg_qualifiers <- function(connection,
                                         survey_name,
-                                        collect = FALSE,
                                         multiple = FALSE) {
   
   assert_that(inherits(connection, what = "Microsoft SQL Server"),
@@ -144,32 +143,37 @@ inboveg_qualifiers <- function(connection,
   
   if (!multiple) {
     sql_statement <- glue_sql(common_part,
-                              "AND ivS.Name LIKE {survey_name}",
+                              "AND ivS.Name LIKE {survey_name}
+                              ",
                               survey_name = survey_name,
                               .con = connection)
     
   } else {
     sql_statement <- glue_sql(common_part,
-                              "AND ivS.Name IN ({survey_name*})",
+                              "AND ivS.Name IN ({survey_name*})
+                              ",
                               survey_name = survey_name,
                               .con = connection)
   }
   
-  query_result <- tbl(connection, sql(sql_statement))
+  sql_statement <- glue_sql(
+    sql_statement,
+    "ORDER BY ivR.UserReference, ivRLQ.QualifierType, ivRLQ.QualifierCode OFFSET 0 ROWS",
+    .con = connection)
   
-  if (!isTRUE(collect)) {
-    return(query_result)
-  } else {
-    query_result <- collect(query_result)
-    return(query_result)
+  sql_statement <- iconv(sql_statement, from =  "UTF-8", to = "latin1")
+  
+  query_result <- dbGetQuery(connection, sql_statement)
+  
+  return(query_result)
+  
   }
-}
   
   
 ## testen - er zit fout in query, view table [syno].[Futon_dbo_ftActionGroupValues]? 
-qualifiers_heischraal2012 <- inboveg_qualifiers(connection, survey_name = "MILKLIM_Heischraal2012", collect = TRUE)
-qualifiers_milkim <- inboveg_qualifiers(connection, survey_name = "%MILKLIM%", collect = TRUE)
-qualifiers_severalsurveys <- inboveg_qualifiers(connection, survey_name = c("MILKLIM_Heischraal2012", "NICHE Vlaanderen"), multiple = TRUE, collect = TRUE)
+qualifiers_heischraal2012 <- inboveg_qualifiers(connection, survey_name = "MILKLIM_Heischraal2012")
+qualifiers_milkim <- inboveg_qualifiers(connection, survey_name = "%MILKLIM%")
+qualifiers_severalsurveys <- inboveg_qualifiers(connection, survey_name = c("MILKLIM_Heischraal2012", "NICHE Vlaanderen"), multiple = TRUE)
 allqualifiers <- inboveg_qualifiers(connection)
 
 
@@ -224,4 +228,4 @@ Qualifiers_Survey %>%  view()
 ## ORDER BY ivR.UserReference, ivRLQ.QualifierType, ivRLQ.QualifierCode
 
 debugonce(inboveg_qualifiers)
-qualifiers_heischraal2012 <- inboveg_qualifiers(connection, survey_name = "MILKLIM_Heischraal2012", collect = TRUE)
+qualifiers_heischraal2012 <- inboveg_qualifiers(connection, survey_name = "MILKLIM_Heischraal2012")
