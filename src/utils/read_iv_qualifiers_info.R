@@ -79,8 +79,9 @@ connection <- connect_inbo_dbase("D0010_00_Cydonia")
 # deel hierboven later verwijderen in inborutils
 ###############################################################
 
-inboveg_qualifiers <- function(connection,
+inboveg_qualifiers_metcollect <- function(connection,
                                    survey_name,
+                                   collect = FALSE,
                                    multiple = FALSE) {
   
   assert_that(inherits(connection, what = "Microsoft SQL Server"),
@@ -166,15 +167,21 @@ inboveg_qualifiers <- function(connection,
   
   query_result <- dbGetQuery(connection, sql_statement)
   
-  return(query_result)
+  if (!isTRUE(collect)) {
+    return(query_result)
+  } else {
+    query_result <- collect(query_result)
+    return(query_result)
   }
+  
+}
 
 
   
   
 ## testen - er zit fout in query, view table [syno].[Futon_dbo_ftActionGroupValues]? 
-qualifiers_heischraal2012 <- inboveg_qualifiers(connection, survey_name = "MILKLIM_Heischraal2012")
-qualifiers_milkim <- inboveg_qualifiers(connection, survey_name = "%MILKLIM%")
+qualifiers_heischraal2012 <- inboveg_qualifiers_metcollect(connection, survey_name = "MILKLIM_Heischraal2012", collect = TRUE)
+qualifiers_milkim <- inboveg_qualifiers_metcollect(connection, survey_name = "%MILKLIM%", collect = FALSE)
 qualifiers_severalsurveys <- inboveg_qualifiers(connection, survey_name = c("MILKLIM_Heischraal2012", "NICHE Vlaanderen"), multiple = TRUE)
 allqualifiers <- inboveg_qualifiers(connection)
 
