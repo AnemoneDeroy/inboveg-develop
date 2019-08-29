@@ -4,7 +4,11 @@ author: "Hans Van Calster, Els De Bie & Jo Loos"
 date: "1 maart 2019 (updated `r Sys.Date()`)"
 categories: databases queries
 tags: database 
-output: md_document
+output: 
+  md_document:
+    preserve_yaml: true
+    toc: true
+    df_print: kable
 ---
 
 
@@ -28,19 +32,28 @@ INBOVEG SQL-server database. This to avoid writing your own queries or
 to copy/paste them from the access-frontend for INBOVEG.
 
 We have provided functions to query
+
 * survey (INBOVEG-projects)
+
 * recordings (vegetation relevés)
+
 * metadata of recordings (header info)
+
 * classification (Natura2000 or local classification like BWK)
+
 * qualifiers (management and site characteristics)
   
 ## Packages and connection
 In order to run the functionalities, some R packags need to be installed. 
 
 The following packages are needed to run this code:
+
 * glue
+
 * DBI
+
 * assertthat
+
 * dplyr
 
 Loading the functionality can be done by loading the `inborutils` package:
@@ -82,26 +95,27 @@ con <- connect_inbo_dbase("D0010_00_Cydonia")
 
 ## Functionality
 
+Moeten de functies ook nog niet geladen worden, hoe worden deze aangesproken vanaf deze tutorial? 
+
+
 ### Survey information
 The function `inboveg_survey` queries the INBOVEG database for survey information 
 (metadata about surveys) for one or more survey(s) by the name of the survey.
 
 ####Examples
-get information of a specific survey and collect data
-
+get information of a specific survey and collect data (only 10 rows are shown)
 ```{r, eval = FALSE}
 survey_info <- inboveg_survey(con, survey_name = "OudeLanden_1979", collect = TRUE)
-
+head(survey_info, 10)
 ```
 get information of all surveys and collect data
 ```{r, eval = FALSE}
 allsurveys <- inboveg_survey(con)
-````
-
+```
 only a part of the survey name is known?
 ```{r, eval = FALSE}
 partsurveys <- inboveg_survey(con, survey = "%MILKLIM%")
-````
+```
 
 ### Recording information
 The function  `inboveg_recordings` queries the INBOVEG database for relevé 

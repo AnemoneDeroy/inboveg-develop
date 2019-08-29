@@ -1,3 +1,28 @@
+---
+title: "Tutorial on how to retrieve data from the INBOVEG database"
+author: "Hans Van Calster, Els De Bie & Jo Loos"
+date: "1 maart 2019 (updated 2019-08-29)"
+categories: databases queries
+tags: database 
+output: 
+  md_document:
+    preserve_yaml: true
+    toc: true
+    df_print: kable
+---
+
+-   [Introduction](#introduction)
+-   [Aim](#aim)
+-   [Packages and connection](#packages-and-connection)
+-   [Functionality](#functionality)
+    -   [Survey information](#survey-information)
+    -   [Recording information](#recording-information)
+    -   [Header information](#header-information)
+    -   [Classification information](#classification-information)
+    -   [Qualifiers information](#qualifiers-information)
+-   [More complex queries](#more-complex-queries)
+    -   [Examples](#examples-4)
+
 Introduction
 ------------
 
@@ -22,10 +47,17 @@ In this tutorial we make functions available to query data directly from
 the INBOVEG SQL-server database. This to avoid writing your own queries
 or to copy/paste them from the access-frontend for INBOVEG.
 
-We have provided functions to query \* survey (INBOVEG-projects) \*
-recordings (vegetation relevés) \* metadata of recordings (header info)
-\* classification (Natura2000 or local classification like BWK) \*
-qualifiers (management and site characteristics)
+We have provided functions to query
+
+-   survey (INBOVEG-projects)
+
+-   recordings (vegetation relevés)
+
+-   metadata of recordings (header info)
+
+-   classification (Natura2000 or local classification like BWK)
+
+-   qualifiers (management and site characteristics)
 
 Packages and connection
 -----------------------
@@ -33,8 +65,15 @@ Packages and connection
 In order to run the functionalities, some R packags need to be
 installed.
 
-The following packages are needed to run this code: \* glue \* DBI \*
-assertthat \* dplyr
+The following packages are needed to run this code:
+
+-   glue
+
+-   DBI
+
+-   assertthat
+
+-   dplyr
 
 Loading the functionality can be done by loading the `inborutils`
 package: \* inborutils
@@ -65,12 +104,6 @@ Be sure you have reading-rights for CYDONIA otherwise place an ICT-call
     library(knitr)
     library(inborutils)
 
-    ## Registered S3 methods overwritten by 'ggplot2':
-    ##   method         from 
-    ##   [.quosures     rlang
-    ##   c.quosures     rlang
-    ##   print.quosures rlang
-
     opts_chunk$set(echo = TRUE)
 
 The following R-code can be used to establish a connection to INBOVEG by
@@ -88,17 +121,22 @@ Or using dbconnection of the inborutils-package with the database
 Functionality
 -------------
 
+Moeten de functies ook nog niet geladen worden, hoe worden deze
+aangesproken vanaf deze tutorial?
+
 ### Survey information
 
-The function 'inboveg\_survey' queries the INBOVEG database for survey
+The function `inboveg_survey` queries the INBOVEG database for survey
 information (metadata about surveys) for one or more survey(s) by the
 name of the survey.
 
 #### Examples
 
-get information of a specific survey and collect data
+get information of a specific survey and collect data (only 10 rows are
+shown)
 
     survey_info <- inboveg_survey(con, survey_name = "OudeLanden_1979", collect = TRUE)
+    head(survey_info, 10)
 
 get information of all surveys and collect data
 
@@ -110,7 +148,7 @@ only a part of the survey name is known?
 
 ### Recording information
 
-The function 'inboveg\_recordings' queries the INBOVEG database for
+The function `inboveg_recordings` queries the INBOVEG database for
 relevé information (which species were recorded in which plots and in
 which vegetation layers with which cover) for one or more surveys.
 
@@ -139,9 +177,9 @@ get all relevés of all surveys, don't collect the data
 
 ### Header information
 
-This function queries the INBOVEG database for header information
-(metadata for a vegetation-relevé) for one survey by the name of the
-survey and the recorder type.
+This function `inboveg_header`queries the INBOVEG database for header
+information (metadata for a vegetation-relevé) for one survey by the
+name of the survey and the recorder type.
 
 #### Examples
 
@@ -157,7 +195,7 @@ get header information of all surveys, don't collect the data
 
 ### Classification information
 
-The function 'inboveg\_classification' queries the INBOVEG database for
+The function `inboveg_classification` queries the INBOVEG database for
 information on the field classification (N2000 or BWK-code) of the
 relevé for one or more survey(s) by the name of the survey.
 
@@ -179,7 +217,10 @@ Nog uitwerken, eerst functie in orde krijgen
 More complex queries
 --------------------
 
-These functions gives the basis information out of INBOVEG.
+These functions gives the basis information out of INBOVEG. If more
+precise information is needed 'dplyr' is the magic word.
+
+### Examples
 
 <!-- ### hieronder de oude versie -->
 <!-- # Retrieving data -->
