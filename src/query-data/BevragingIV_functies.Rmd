@@ -11,8 +11,11 @@ output:
     df_print: kable
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
 
-## Introduction
+# Introduction
 The Flemish vegetation database, INBOVEG, is an application developed to provide
 a repository of relevés and makes the relevés available for future use.
 
@@ -26,7 +29,7 @@ Original observations are preserved and a full history of subsequent
 identifications is saved.
 
 
-## Aim
+# Aim
 In this tutorial we make functions available to query data directly from the 
 INBOVEG SQL-server database. This to avoid writing your own queries or 
 to copy/paste them from the access-frontend for INBOVEG.
@@ -43,7 +46,7 @@ We have provided functions to query
 
 * qualifiers (management and site characteristics)
   
-## Packages and connection
+# Packages and connection
 In order to run the functionalities, some R packags need to be installed. 
 
 The following packages are needed to run this code:
@@ -57,23 +60,20 @@ The following packages are needed to run this code:
 * dplyr
 
 Loading the functionality can be done by loading the `inborutils` package:
+
 * inborutils
 
 Be sure you have reading-rights for CYDONIA
 otherwise place an ICT-call (ict.helpdesk@inbo.be)
 
 
-```{r}
-
+```{r load_libraries, eval = FALSE, message = FALSE, warning = FALSE}
 library(glue)
 library(DBI)
 library(assertthat)
 library(dplyr)
 library(knitr)
 library(inborutils)
-
-opts_chunk$set(echo = TRUE)
-
 ```
 The following R-code can be used to establish a connection to INBOVEG 
 by means of a connection string:
@@ -81,117 +81,148 @@ by means of a connection string:
 <!--better to use a connection string than dsn. 
 dsn requires extra steps and settings in windows odbc manager-->
 
-```{r, eval = FALSE}
-
+```{r connection_str, eval = FALSE}
 connection <- dbConnect(odbc::odbc(), .connection_string = "Driver=SQL Server;Server=inbo-sql07-prd.inbo.be,1433;Database=D0010_00_Cydonia;Trusted_Connection=Yes;")
 ```
 
 Or using dbconnection of the inborutils-package with the database 'Cydonia' 
 on the inbo-sql07-prd server:
 
-```{r, eval = FALSE}
+```{r connection_inbo, eval = FALSE}
 con <- connect_inbo_dbase("D0010_00_Cydonia")
 ```
 
-## Functionality
+# Functionality
 
 Moeten de functies ook nog niet geladen worden, hoe worden deze aangesproken vanaf deze tutorial? 
+source("./src/utils/read_iv_survey_info.R")
 
-
-### Survey information
+## Survey information
 The function `inboveg_survey` queries the INBOVEG database for survey information 
 (metadata about surveys) for one or more survey(s) by the name of the survey.
 
-####Examples
-get information of a specific survey and collect data (only 10 rows are shown)
-```{r, eval = FALSE}
+###Examples
+Three examples are given, this can be used as base to continue selecting the wanted data
+
+```{r examples_survey, eval = FALSE}
+
+# get information of a specific survey and collect data (only 10 rows are shown)
 survey_info <- inboveg_survey(con, survey_name = "OudeLanden_1979", collect = TRUE)
 head(survey_info, 10)
-```
-get information of all surveys and collect data
-```{r, eval = FALSE}
+
+# get information of all surveys and collect data
 allsurveys <- inboveg_survey(con)
-```
-only a part of the survey name is known?
-```{r, eval = FALSE}
+
+#only a part of the survey name is known?
 partsurveys <- inboveg_survey(con, survey = "%MILKLIM%")
+
 ```
 
-### Recording information
+
+## Recording information
 The function  `inboveg_recordings` queries the INBOVEG database for relevé 
 information (which species were recorded in which plots and in which vegetation 
 layers with which cover) for one or more surveys.
 
-####Examples
-get the relevés from one survey and collect the data
-```{r, eval = FALSE}
+###Examples
+Four examples are given, this can be used as base to continue selecting the wanted data
+
+```{r examples_recordings, eval = FALSE}
+
+# get the relevés from one survey and collect the data
 recording_heischraal2012 <- inboveg_recordings(con, survey_name = 
 "MILKLIM_Heischraal2012", collect = TRUE)
-````
 
-get all recordings from MILKLIM surveys (partial matching), don't collect
-```{r, eval = FALSE}
+# get all recordings from MILKLIM surveys (partial matching), don't collect
 recording_milkim <- inboveg_recordings(con, survey_name = "%MILKLIM%",
 collect = TRUE)
-````
 
-get recordings from several specific surveys
-```{r, eval = FALSE}
+# get recordings from several specific surveys
 recording_severalsurveys <- inboveg_recordings(con, survey_name =
 c("MILKLIM_Heischraal2012", "NICHE Vlaanderen"), multiple = TRUE,
 collect = TRUE)
-````
 
-get all relevés of all surveys,  don't collect the data
-```{r, eval = FALSE}
+# get all relevés of all surveys,  don't collect the data
 allrecordings <- inboveg_recordings(con)
-````
+```
 
-### Header information
+## Header information
 This function `inboveg_header`queries the INBOVEG database for header information 
 (metadata for a vegetation-relevé) for one survey by the name of the survey 
 and the recorder type. 
 
-####Examples
-get header information from a specific survey and a specific recording type
-and collect the data
+###Examples
+Two examples are given, this can be used as base to continue selecting the wanted data
 
-```{r, eval = FALSE}
+```{r examples_header, eval = FALSE}
+
+# get header information from a specific survey and a specific recording type and collect the data
 header_info <- inboveg_header(con, survey_name = "OudeLanden_1979",
 rec_type = "Classic", collect = TRUE)
-````
 
-get header information of all surveys,  don't collect the data
-```{r, eval = FALSE}
+# get header information of all surveys,  don't collect the data
 all_header_info <- inboveg_header(con)
-```` 
 
-### Classification information
+```
+
+## Classification information
 The function `inboveg_classification` queries the INBOVEG database for information 
 on the field classification (N2000 or BWK-code) of the relevé for one or more 
 survey(s) by the name of the survey. 
 
-####Examples
-get a specific classification from a survey and collect the data
-```{r, eval = FALSE}
+###Examples
+Two  examples are given, this can be used as base to continue selecting the wanted data
+
+```{r examples_classification, eval = FALSE}
+
+# get a specific classification from a survey and collect the data
 classif_info <- inboveg_classification(con, 
 survey_name = "MILKLIM_Heischraal2012", classif = "4010", collect = TRUE)
-````
 
-get all surveys, all classifications,  don't collect the data
-```{r, eval = FALSE}
+# get all surveys, all classifications,  don't collect the data
 allecodes <- inboveg_classification(con)
-````
+```
 
+## Qualifiers information
+This function `inboveg_qualifiers`queries the INBOVEG database for
+qualifier information on recordings for one or more surveys. These qualifiers 
+give information on management, location description, ... 
 
-### Qualifiers information
-Nog uitwerken, eerst functie in orde krijgen 
+###Examples
+Four examples are given, this can be used as base to continue selecting the wanted data
 
+```{r examples_qualifiers, eval = FALSE}
+
+# get the qualifiers from one survey
+qualifiers_heischraal2012 <- inboveg_qualifiers(con, survey_name =
+"MILKLIM_Heischraal2012")
+
+# get all qualifiers from MILKLIM surveys (partial matching)
+qualifiers_milkim <- inboveg_qualifiers(con, survey_name = "%MILKLIM%")
+
+# get qualifiers from several specific surveys
+qualifiers_severalsurveys <- inboveg_qualifiers(con, survey_name =
+c("MILKLIM_Heischraal2012", "NICHE Vlaanderen"), multiple = TRUE)
+
+# get all qualifiers of all surveys
+allqualifiers <- inboveg_qualifiers(con)
+```
 
 ## More complex queries
 These functions gives the basis information out of INBOVEG. If more precise information is needed 'dplyr' is the magic word.
 
 ### Examples
+
+
+
+# Closing the connection 
+Close the connection when done
+```{r closing_conn, eval = FALSE}
+
+dbDisconnect(connection)
+rm(connection)
+```
+
 
 
 

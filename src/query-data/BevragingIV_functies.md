@@ -1,7 +1,7 @@
 ---
 title: "Tutorial on how to retrieve data from the INBOVEG database"
 author: "Hans Van Calster, Els De Bie & Jo Loos"
-date: "1 maart 2019 (updated 2019-08-29)"
+date: "1 maart 2019 (updated 2019-08-30)"
 categories: databases queries
 tags: database 
 output: 
@@ -16,15 +16,21 @@ output:
 -   [Packages and connection](#packages-and-connection)
 -   [Functionality](#functionality)
     -   [Survey information](#survey-information)
+        -   [Examples](#examples)
     -   [Recording information](#recording-information)
+        -   [Examples](#examples-1)
     -   [Header information](#header-information)
+        -   [Examples](#examples-2)
     -   [Classification information](#classification-information)
+        -   [Examples](#examples-3)
     -   [Qualifiers information](#qualifiers-information)
--   [More complex queries](#more-complex-queries)
-    -   [Examples](#examples-4)
+        -   [Examples](#examples-4)
+    -   [More complex queries](#more-complex-queries)
+        -   [Examples](#examples-5)
+-   [Closing the connection](#closing-the-connection)
 
 Introduction
-------------
+============
 
 The Flemish vegetation database, INBOVEG, is an application developed to
 provide a repository of relevés and makes the relevés available for
@@ -41,7 +47,7 @@ Original observations are preserved and a full history of subsequent
 identifications is saved.
 
 Aim
----
+===
 
 In this tutorial we make functions available to query data directly from
 the INBOVEG SQL-server database. This to avoid writing your own queries
@@ -60,7 +66,7 @@ We have provided functions to query
 -   qualifiers (management and site characteristics)
 
 Packages and connection
------------------------
+=======================
 
 In order to run the functionalities, some R packags need to be
 installed.
@@ -76,7 +82,9 @@ The following packages are needed to run this code:
 -   dplyr
 
 Loading the functionality can be done by loading the `inborutils`
-package: \* inborutils
+package:
+
+-   inborutils
 
 Be sure you have reading-rights for CYDONIA otherwise place an ICT-call
 (<ict.helpdesk@inbo.be>)
@@ -85,26 +93,8 @@ Be sure you have reading-rights for CYDONIA otherwise place an ICT-call
     library(DBI)
     library(assertthat)
     library(dplyr)
-
-    ## 
-    ## Attaching package: 'dplyr'
-
-    ## The following object is masked from 'package:glue':
-    ## 
-    ##     collapse
-
-    ## The following objects are masked from 'package:stats':
-    ## 
-    ##     filter, lag
-
-    ## The following objects are masked from 'package:base':
-    ## 
-    ##     intersect, setdiff, setequal, union
-
     library(knitr)
     library(inborutils)
-
-    opts_chunk$set(echo = TRUE)
 
 The following R-code can be used to establish a connection to INBOVEG by
 means of a connection string:
@@ -119,100 +109,125 @@ Or using dbconnection of the inborutils-package with the database
     con <- connect_inbo_dbase("D0010_00_Cydonia")
 
 Functionality
--------------
+=============
 
 Moeten de functies ook nog niet geladen worden, hoe worden deze
 aangesproken vanaf deze tutorial?
+source("./src/utils/read\_iv\_survey\_info.R")
 
-### Survey information
+Survey information
+------------------
 
 The function `inboveg_survey` queries the INBOVEG database for survey
 information (metadata about surveys) for one or more survey(s) by the
 name of the survey.
 
-#### Examples
+### Examples
 
-get information of a specific survey and collect data (only 10 rows are
-shown)
+Three examples are given, this can be used as base to continue selecting
+the wanted data
 
+    # get information of a specific survey and collect data (only 10 rows are shown)
     survey_info <- inboveg_survey(con, survey_name = "OudeLanden_1979", collect = TRUE)
     head(survey_info, 10)
 
-get information of all surveys and collect data
-
+    # get information of all surveys and collect data
     allsurveys <- inboveg_survey(con)
 
-only a part of the survey name is known?
-
+    #only a part of the survey name is known?
     partsurveys <- inboveg_survey(con, survey = "%MILKLIM%")
 
-### Recording information
+Recording information
+---------------------
 
 The function `inboveg_recordings` queries the INBOVEG database for
 relevé information (which species were recorded in which plots and in
 which vegetation layers with which cover) for one or more surveys.
 
-#### Examples
+### Examples
 
-get the relevés from one survey and collect the data
+Four examples are given, this can be used as base to continue selecting
+the wanted data
 
+    # get the relevés from one survey and collect the data
     recording_heischraal2012 <- inboveg_recordings(con, survey_name = 
     "MILKLIM_Heischraal2012", collect = TRUE)
 
-get all recordings from MILKLIM surveys (partial matching), don't
-collect
-
+    # get all recordings from MILKLIM surveys (partial matching), don't collect
     recording_milkim <- inboveg_recordings(con, survey_name = "%MILKLIM%",
     collect = TRUE)
 
-get recordings from several specific surveys
-
+    # get recordings from several specific surveys
     recording_severalsurveys <- inboveg_recordings(con, survey_name =
     c("MILKLIM_Heischraal2012", "NICHE Vlaanderen"), multiple = TRUE,
     collect = TRUE)
 
-get all relevés of all surveys, don't collect the data
-
+    # get all relevés of all surveys,  don't collect the data
     allrecordings <- inboveg_recordings(con)
 
-### Header information
+Header information
+------------------
 
 This function `inboveg_header`queries the INBOVEG database for header
 information (metadata for a vegetation-relevé) for one survey by the
 name of the survey and the recorder type.
 
-#### Examples
+### Examples
 
-get header information from a specific survey and a specific recording
-type and collect the data
+Two examples are given, this can be used as base to continue selecting
+the wanted data
 
+    # get header information from a specific survey and a specific recording type and collect the data
     header_info <- inboveg_header(con, survey_name = "OudeLanden_1979",
     rec_type = "Classic", collect = TRUE)
 
-get header information of all surveys, don't collect the data
-
+    # get header information of all surveys,  don't collect the data
     all_header_info <- inboveg_header(con)
 
-### Classification information
+Classification information
+--------------------------
 
 The function `inboveg_classification` queries the INBOVEG database for
 information on the field classification (N2000 or BWK-code) of the
 relevé for one or more survey(s) by the name of the survey.
 
-#### Examples
+### Examples
 
-get a specific classification from a survey and collect the data
+Two examples are given, this can be used as base to continue selecting
+the wanted data
 
+    # get a specific classification from a survey and collect the data
     classif_info <- inboveg_classification(con, 
     survey_name = "MILKLIM_Heischraal2012", classif = "4010", collect = TRUE)
 
-get all surveys, all classifications, don't collect the data
-
+    # get all surveys, all classifications,  don't collect the data
     allecodes <- inboveg_classification(con)
 
-### Qualifiers information
+Qualifiers information
+----------------------
 
-Nog uitwerken, eerst functie in orde krijgen
+This function `inboveg_qualifiers`queries the INBOVEG database for
+qualifier information on recordings for one or more surveys. These
+qualifiers give information on management, location description, ...
+
+### Examples
+
+Four examples are given, this can be used as base to continue selecting
+the wanted data
+
+    # get the qualifiers from one survey
+    qualifiers_heischraal2012 <- inboveg_qualifiers(con, survey_name =
+    "MILKLIM_Heischraal2012")
+
+    # get all qualifiers from MILKLIM surveys (partial matching)
+    qualifiers_milkim <- inboveg_qualifiers(con, survey_name = "%MILKLIM%")
+
+    # get qualifiers from several specific surveys
+    qualifiers_severalsurveys <- inboveg_qualifiers(con, survey_name =
+    c("MILKLIM_Heischraal2012", "NICHE Vlaanderen"), multiple = TRUE)
+
+    # get all qualifiers of all surveys
+    allqualifiers <- inboveg_qualifiers(con)
 
 More complex queries
 --------------------
@@ -221,6 +236,14 @@ These functions gives the basis information out of INBOVEG. If more
 precise information is needed 'dplyr' is the magic word.
 
 ### Examples
+
+Closing the connection
+======================
+
+Close the connection when done
+
+    dbDisconnect(connection)
+    rm(connection)
 
 <!-- ### hieronder de oude versie -->
 <!-- # Retrieving data -->
