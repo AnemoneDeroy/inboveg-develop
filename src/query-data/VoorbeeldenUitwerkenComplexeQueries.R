@@ -8,12 +8,13 @@ library(knitr)
 library(odbc)
 library(assertthat)
 
-##library(inborutils)
+library(inborutils)
 
 ## connectie met databank
 connection <- connect_inbo_dbase("D0010_00_Cydonia")
 
-## Voorbeeld Qualifier aan bepaald recordingGIVID 
+## Voorbeeld Classif aan bepaald recordingGIVID 
+
 ### recording ophalen met functie:
 inboveg_recordings <- function(connection,
                                survey_name,
@@ -119,4 +120,81 @@ inboveg_recordings <- function(connection,
 }
 
 #### Heischraal 
-recording_heischraal2012 <- inboveg_recordings(con, survey_name = "MILKLIM_Heischraal2012", collect = TRUE)
+recording_heischraal2012 <- inboveg_recordings(connection, survey_name = "MILKLIM_Heischraal2012", collect = TRUE)
+
+### Classification
+inboveg_classification <- function(connection,
+                                   survey_name,
+                                   classif,
+                                   collect = FALSE) {
+  
+  assert_that(inherits(connection, what = "Microsoft SQL Server"),
+              msg = "Not a connection object to database.")
+  
+  if (missing(survey_name)) {
+    survey_name <- "%"
+  } else {
+    assert_that(is.character(survey_name))
+  }
+  
+  if (missing(classif)) {
+    classif <- "%"
+  } else {
+    assert_that(is.character(classif))
+  }
+  
+  sql_statement <- glue_sql(
+    "Select ivR.RecordingGivid
+    , ivS.Name
+    , ivRLClas.Classif
+    , ivRLRes_Class.ActionGroup
+    , ivRLRes_Class.ListName
+    , ftBWK.Description as LocalClassification
+    , ftN2k.Description  as Habitattype
+    , ivRLClas.Cover
+    , ftC.PctValue
+    FROM ivRecording ivR
+    INNER JOIN ivSurvey ivS on ivS.Id = ivR.surveyId
+    LEFT JOIN [dbo].[ivRLClassification] ivRLClas on ivRLClas.RecordingID = ivR.Id
+    LEFT JOIN [dbo].[ivRLResources] ivRLRes_Class on ivRLRes_Class.ResourceGIVID = ivRLClas.ClassifResource
+    LEFT JOIN [syno].[Futon_dbo_ftActionGroupList] ftAGL_Class on ftAGL_Class.ActionGroup = ivRLRes_Class.ActionGroup collate Latin1_General_CI_AI
+    AND ftAGL_Class.ListName = ivRLRes_Class.ListName collate Latin1_General_CI_AI
+    LEFT JOIN [syno].[Futon_dbo_ftBWKValues] ftBWK on ftBWK.Code = ivRLClas.Classif collate Latin1_General_CI_AI
+    AND ftBWK.ListGIVID = ftAGL_Class.ListGIVID
+    LEFT JOIN [syno].[Futon_dbo_ftN2kValues] ftN2K on ftN2K.Code = ivRLClas.Classif collate Latin1_General_CI_AI
+    AND ftN2K.ListGIVID = ftAGL_Class.ListGIVID
+    LEFT JOIN [dbo].[ivRLResources] ivRLR_C on ivRLR_C.ResourceGIVID = ivRLClas.CoverResource
+    LEFT JOIN [syno].[Futon_dbo_ftActionGroupList] ftAGL_C on ftAGL_C.ActionGroup = ivRLR_C.ActionGroup collate Latin1_General_CI_AI
+    AND ftAGL_C.ListName = ivRLR_C.ListName collate Latin1_General_CI_AI
+    LEFT JOIN [syno].[Futon_dbo_ftCoverValues] ftC on ftC.Code = ivRLClas.Cover collate Latin1_General_CI_AI
+    AND ftAGL_C.ListGIVID = ftC.ListGIVID
+    WHERE ivRLClas.Classif is not NULL
+    AND ivS.Name LIKE {survey_name}
+    AND ivRLClas.Classif LIKE {classif}",
+    survey_name = survey_name,
+    classif = classif,
+    .con = connection)
+
+  query_result <- tbl(connection, sql(sql_statement))
+
+  if (!isTRUE(collect)) {
+    return(query_result)
+  } else {
+    query_result <- collect(query_result)
+    return(query_result)
+  }
+}
+
+#### voorbeeld
+classif_info <- inboveg_classification(connection, survey_name = "MILKLIM_Heischraal2012", classif = "4010", collect = TRUE)
+
+
+## Samen leggen
+
+test <- recording_heischraal2012 %>% 
+  inner_join(classif_info, by = "RecordingGivid") %>% 
+  select(RecordingGivid, ScientificName, Classif, Cover) 
+
+  
+  
+
