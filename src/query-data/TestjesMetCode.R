@@ -1157,5 +1157,311 @@ inboveg_recordings_extended <- function(connection,
   }
   }
 
+# */
+#   <!-- ### hieronder de oude versie -->
+#   <!-- # Retrieving data -->
+#   
+#   <!-- ## *iv_Survey*: -->
+#   
+#   <!-- gives the list of all surveys in InboVeg -->
+#   
+#   <!-- - define the name of the survey by survey <- "name" -->
+#   
+#   <!-- ```{r} -->
+#   
+#   <!-- survey_info <- function(survey, con) { -->
+#       <!--   dbGetQuery(con, glue_sql( -->
+#                                          <!--     "SELECT -->
+#                                        <!--     ivS.Id -->
+#                                        <!--     , ivS.Name -->
+#                                        <!--     , ivS.Description -->
+#                                        <!--     , ivS.Owner -->
+#                                        <!--     , ivS.creator -->
+#                                        <!--     FROM [dbo].[ivSurvey] ivS -->
+#                                        <!--     WHERE ivS.Name LIKE {survey}",  -->
+#                                          <!--     ivS.Name = survey, -->
+#                                          <!--     .con = con )) -->
+#       <!-- } -->
+#   
+#   <!-- ``` -->
+#   
+#   <!-- Example -->
+#   <!--   * survey <- "OudeLanden_1979" -->
+#   <!--   * SurveyInfo <- survey_info(survey, con) -->
+#   <!--   * SurveyInfo -->
+#   
+#   <!-- The whole list of surveys is given by   -->
+#   <!--   *AllSurveys <- survey_info(survey = "%", .con = con) -->
+#   
+#   <!-- Only a part of the survey name is known?  -->
+#   <!--  *PartSurveys <- survey_info(survey = "%MILKLIM%", .con = con) -->
+#   
+#   
+#   <!-- ## *iv_headerinfo*:  -->
+#   
+#   <!-- gives the metadata for a vegetation-relevé (one row per vegetation-relevé identified by 'RecordingGivid') -->
+#   <!-- - specify two parameters for the function: -->
+#   <!--     - RecType = c('Classic', 'Classic-emmer', 'Classic-ketting', 'BioHab', 'ABS') -->
+#   <!--     - SurveyName = to get the list, run the code under "## iv_survey -->
+# 
+# <!-- ```{r} -->
+# 
+# <!-- header_info <- function(SurveyName, RecType, .con) { -->
+# <!--   dbGetQuery(con, glue_sql( -->
+# <!--     "SELECT  -->
+#   <!--       ivR.[RecordingGivid] -->
+#   <!--       , ivS.Name -->
+#   <!--       , ivR.UserReference -->
+#   <!--       , ivR.LocationCode -->
+#   <!--       , ivR.Latitude -->
+#   <!--       , ivR.Longitude -->
+#   <!--       , ivR.Area -->
+#   <!--       , ivR.Length -->
+#   <!--       , ivR.Width -->
+#   <!--       , ivR.SurveyId -->
+#   <!--       , ivR.RecTypeID -->
+#   <!--       , coalesce(area, convert( nvarchar(20),ivR.Length * ivR.Width)) as B -->
+#   <!--       FROM [dbo].[ivRecording] ivR -->
+#   <!--       INNER JOIN [dbo].[ivSurvey] ivS on ivS.Id = ivR.SurveyId -->
+#   <!--       INNER JOIN [dbo].[ivRecTypeD] ivRec on ivRec.ID = ivR.RecTypeID  -->
+#   <!--       where ivR.NeedsWork = 0 -->
+#   <!--       AND ivS.Name LIKE {SurveyName} -->
+#   <!--       AND ivREc.Name LIKE {RecType}",  -->
+# <!--     ivS.Name = SurveyName, -->
+# <!--     ivRec.Name = RecType, -->
+# <!--     .con = con)) -->
+# <!-- } -->
+# 
+# 
+# <!-- ``` -->
+# 
+# <!-- Example  -->
+# <!--   * RecType <- "Classic" -->
+# <!--   * SurveyName <- "OudeLanden_1979" -->
+# <!--   * Headerinfo <- header_info(SurveyName, RecType, con) -->
+# <!--   * Headerinfo <- header_info("OudeLanden_1979", "Classic", con) -->
+# 
+# 
+# <!-- ## *iv_Classification_N2000*: -->
+# 
+# <!-- gives the N2000-code, recorderd by the observer of the relevé at the field (with or without field-key) -->
+# <!-- - specify the name of the survey you want to use. if none, all the classification records in inboveg will be given -->
+# <!-- - specify the N2000 code to retrieve all relevés indicated as this code -->
+# 
+# 
+# <!-- ```{r} -->
+# <!-- classification_info_N2000 <- function(SurveyName, N2000, .con) { -->
+# <!--   dbGetQuery(con, glue_sql( -->
+# <!--     "SELECT  -->
+#   <!--     ivR.RecordingGivid -->
+#   <!--     , ivS.Name as survey -->
+#   <!--     , ivRLClas.Classif -->
+#   <!--     , ivRLRes_Class.ActionGroup -->
+#   <!--     , ivRLRes_Class.ListName -->
+#   <!--     , ftN2k.Description  as Habitattype -->
+#   <!--     , ivRLClas.Cover -->
+#   <!--     , ftC.PctValue -->
+#   <!--     FROM ivRecording ivR -->
+#   <!--     INNER JOIN ivSurvey ivS on ivS.Id = ivR.surveyId -->
+#   <!--     LEFT JOIN [dbo].[ivRLClassification] ivRLClas on ivRLClas.RecordingID = ivR.Id -->
+#   <!--     LEFT JOIN [dbo].[ivRLResources] ivRLRes_Class on ivRLRes_Class.ResourceGIVID = ivRLClas.ClassifResource -->
+#   <!--     LEFT JOIN [syno].[Futon_dbo_ftActionGroupList] ftAGL_Class on ftAGL_Class.ActionGroup = ivRLRes_Class.ActionGroup collate Latin1_General_CI_AI -->
+#   <!--     AND ftAGL_Class.ListName = ivRLRes_Class.ListName collate Latin1_General_CI_AI -->
+#   <!--     LEFT JOIN [syno].[Futon_dbo_ftN2kValues] ftN2K on ftN2K.Code = ivRLClas.Classif collate Latin1_General_CI_AI  -->
+#   <!--     AND ftN2K.ListGIVID = ftAGL_Class.ListGIVID  -->
+#   <!--     LEFT JOIN [dbo].[ivRLResources] ivRLR_C on ivRLR_C.ResourceGIVID = ivRLClas.CoverResource -->
+#   <!--     LEFT JOIN [syno].[Futon_dbo_ftActionGroupList] ftAGL_C on ftAGL_C.ActionGroup = ivRLR_C.ActionGroup collate Latin1_General_CI_AI -->
+#   <!--     AND ftAGL_C.ListName = ivRLR_C.ListName collate Latin1_General_CI_AI -->
+#   <!--     LEFT JOIN [syno].[Futon_dbo_ftCoverValues] ftC on ftC.Code = ivRLClas.Cover collate Latin1_General_CI_AI -->
+#   <!--     AND ftAGL_C.ListGIVID = ftC.ListGIVID  -->
+#   <!--     WHERE ivRLClas.Classif is not NULL  -->
+#   <!--     AND ivS.Name LIKE {SurveyName} -->
+#   <!--     AND ivRLClas.Classif LIKE {N2000}", -->
+# <!--            ivS.Name = SurveyName, -->
+# <!--            ivRLClas.Classif = N2000,  -->
+# <!--            .con = con)) -->
+# <!-- } -->
+# 
+# <!-- ``` -->
+# 
+# <!-- Example -->
+# <!--   * SurveyName <- "MILKLIM_Heischraal2012" -->
+# <!--   * N2000 <- "4010" -->
+# <!--   * Classifiction <- classification_info_N2000(SurveyName, N2000, con) -->
+# <!--   * Classifiction2 <- classification_info_N2000("MILKLIM_Heischraal2012", "4010", con)  -->
+# 
+# <!-- ## iv_Classification_BWK -->
+# 
+# <!-- gives the BWK-code, recorderd by the observer of the relevé -->
+# <!-- - specify the name of the survey you want to use. if none, all the classification records in inboveg will be given -->
+# <!-- - specify the bwk-code to retrieve all relevés indicated as this code -->
+# 
+# <!-- ```{r} -->
+# <!-- classification_info_bwk <- function(SurveyName, BWK, .con) { -->
+# <!--   dbGetQuery(con, glue_sql( -->
+# <!--     "SELECT  -->
+#   <!--     ivR.RecordingGivid -->
+#   <!--     , ivS.Name as survey -->
+#   <!--     , ivRLClas.Classif -->
+#   <!--     , ivRLRes_Class.ActionGroup -->
+#   <!--     , ivRLRes_Class.ListName -->
+#   <!--     , ftBWK.Description as LocalClassification -->
+#   <!--     , ivRLClas.Cover -->
+#   <!--     , ftC.PctValue -->
+#   <!--     FROM ivRecording ivR -->
+#   <!--     INNER JOIN ivSurvey ivS on ivS.Id = ivR.surveyId -->
+#   <!--     LEFT JOIN [dbo].[ivRLClassification] ivRLClas on ivRLClas.RecordingID = ivR.Id -->
+#   <!--     LEFT JOIN [dbo].[ivRLResources] ivRLRes_Class on ivRLRes_Class.ResourceGIVID = ivRLClas.ClassifResource -->
+#   <!--     LEFT JOIN [syno].[Futon_dbo_ftActionGroupList] ftAGL_Class on ftAGL_Class.ActionGroup = ivRLRes_Class.ActionGroup collate Latin1_General_CI_AI -->
+#   <!--     AND ftAGL_Class.ListName = ivRLRes_Class.ListName collate Latin1_General_CI_AI -->
+#   <!--     LEFT JOIN [syno].[Futon_dbo_ftBWKValues] ftBWK on ftBWK.Code = ivRLClas.Classif collate Latin1_General_CI_AI  -->
+#   <!--     AND ftBWK.ListGIVID = ftAGL_Class.ListGIVID  -->
+#   <!--     LEFT JOIN [dbo].[ivRLResources] ivRLR_C on ivRLR_C.ResourceGIVID = ivRLClas.CoverResource -->
+#   <!--     LEFT JOIN [syno].[Futon_dbo_ftActionGroupList] ftAGL_C on ftAGL_C.ActionGroup = ivRLR_C.ActionGroup collate Latin1_General_CI_AI -->
+#   <!--     AND ftAGL_C.ListName = ivRLR_C.ListName collate Latin1_General_CI_AI -->
+#   <!--     LEFT JOIN [syno].[Futon_dbo_ftCoverValues] ftC on ftC.Code = ivRLClas.Cover collate Latin1_General_CI_AI -->
+#   <!--     AND ftAGL_C.ListGIVID = ftC.ListGIVID  -->
+#   <!--     WHERE ivRLClas.Classif is not NULL  -->
+#   <!--     AND ivS.Name LIKE {SurveyName} -->
+#   <!--     AND ivRLClas.Classif LIKE {BWK}", -->
+# <!--            ivS.Name = SurveyName, -->
+# <!--            ivRLClas.Classif = BWK,  -->
+# <!--            .con = con)) -->
+# <!-- } -->
+# 
+# <!-- ``` -->
+# 
+# <!-- Example  -->
+# <!--   * SurveyName <- "CultuurgraslandTypologie" -->
+# <!--   * BWK <- "h" -->
+# <!--   * Classifiction <- classification_info_bwk(SurveyName, BWK, con) -->
+# <!--   * Classifiction2 <- classification_info_bwk("CultuurgraslandTypologie", "h", con)  -->
+# 
+# 
+# 
+# <!-- ## iv_classification -->
+# <!-- gives the N2000-code or BWK-code, recorderd by the observer of the relevé at the field (with or without field-key) -->
+# <!-- - specify the name of the survey you want to use. if none, all the classification records in inboveg will be given -->
+# <!-- - specify the N2000 or BWK code to retrieve all relevés indicated as this code -->
+# 
+# <!-- ```{r} -->
+# <!-- classification_info_alles <- function(SurveyName, Classif, .con) { -->
+# <!--   dbGetQuery(con, glue_sql( -->
+# <!--     "Select ivR.RecordingGivid -->
+#   <!--     , ivS.Name -->
+#   <!--     , ivRLClas.Classif -->
+#   <!--     , ivRLRes_Class.ActionGroup -->
+#   <!--     , ivRLRes_Class.ListName -->
+#   <!--     , ftBWK.Description as LocalClassification -->
+#   <!--     , ftN2k.Description  as Habitattype -->
+#   <!--     , ivRLClas.Cover -->
+#   <!--     , ftC.PctValue -->
+#   <!--     FROM ivRecording ivR -->
+#   <!--     INNER JOIN ivSurvey ivS on ivS.Id = ivR.surveyId -->
+#   <!--     LEFT JOIN [dbo].[ivRLClassification] ivRLClas on ivRLClas.RecordingID = ivR.Id -->
+#   <!--     LEFT JOIN [dbo].[ivRLResources] ivRLRes_Class on ivRLRes_Class.ResourceGIVID = ivRLClas.ClassifResource -->
+#   <!--     LEFT JOIN [syno].[Futon_dbo_ftActionGroupList] ftAGL_Class on ftAGL_Class.ActionGroup = ivRLRes_Class.ActionGroup collate Latin1_General_CI_AI -->
+#   <!--     AND ftAGL_Class.ListName = ivRLRes_Class.ListName collate Latin1_General_CI_AI -->
+#   <!--     LEFT JOIN [syno].[Futon_dbo_ftBWKValues] ftBWK on ftBWK.Code = ivRLClas.Classif collate Latin1_General_CI_AI  -->
+#   <!--     AND ftBWK.ListGIVID = ftAGL_Class.ListGIVID  -->
+#   <!--     LEFT JOIN [syno].[Futon_dbo_ftN2kValues] ftN2K on ftN2K.Code = ivRLClas.Classif collate Latin1_General_CI_AI  -->
+#   <!--     AND ftN2K.ListGIVID = ftAGL_Class.ListGIVID  -->
+#   <!--     LEFT JOIN [dbo].[ivRLResources] ivRLR_C on ivRLR_C.ResourceGIVID = ivRLClas.CoverResource -->
+#   <!--     LEFT JOIN [syno].[Futon_dbo_ftActionGroupList] ftAGL_C on ftAGL_C.ActionGroup = ivRLR_C.ActionGroup collate Latin1_General_CI_AI -->
+#   <!--     AND ftAGL_C.ListName = ivRLR_C.ListName collate Latin1_General_CI_AI -->
+#   <!--     LEFT JOIN [syno].[Futon_dbo_ftCoverValues] ftC on ftC.Code = ivRLClas.Cover collate Latin1_General_CI_AI -->
+#   <!--     AND ftAGL_C.ListGIVID = ftC.ListGIVID  -->
+#   <!--     WHERE ivRLClas.Classif is not NULL ", -->
+# <!--     ivS.Name = SurveyName, -->
+# <!--     ivRLClas.Classif = Classif, -->
+# <!--     .con = con)) -->
+# <!-- } -->
+# <!-- ``` -->
+# 
+# <!-- Example  -->
+# <!--     *SurveyName <- "MILKLIM_Heischraal2012" -->
+# <!--     *Classif <- "4010"  -->
+# <!--     *Classif_info <- classification_info_alles(SurveyName, Classif, con) -->
+# <!--     *Classif_info2 <- classification_info_alles("MILKLIM_Heischraal2012", "4010", con) -->
+# <!--     *Allecodes <- classification_info_alles(SurveyName = "%", Classif = "%", .con = con) -->
+# 
+# 
+# <!-- ## iv_Relevés -->
+# 
+# <!-- gives the relevés (plant list with coverage) of one Survey -->
+# <!--  - specify the name of the survey you want to use. if none, all the records in inboveg will be given (to avoid!) -->
+# 
+# <!-- ```{r} -->
+# 
+# <!-- relevé_info_surveyname <- function(SurveyName, .con) { -->
+# <!--   dbGetQuery(con, glue_sql( -->
+# <!--           "SELECT ivS.Name -->
+#   <!--                   , ivR.[RecordingGivid] -->
+#   <!--                   , ivRL_Layer.LayerCode -->
+#   <!--                   , ivRL_Layer.CoverCode -->
+#   <!--                   , ivRL_Iden.TaxonFullText as OrignalName -->
+#   <!--                   , Synoniem.ScientificName -->
+#   <!--                   , ivRL_Iden.PhenologyCode -->
+#   <!--                   , ivRL_Taxon.CoverageCode -->
+#   <!--                   , ftCover.PctValue -->
+#   <!--                   , ftAGL.Description as RecordingScale -->
+#   <!--           FROM  dbo.ivSurvey ivS -->
+#   <!--           INNER JOIN [dbo].[ivRecording] ivR  ON ivR.SurveyId = ivS.Id -->
+#   <!--       -- Deel met soortenlijst en synoniem -->
+#   <!--           INNER JOIN [dbo].[ivRLLayer] ivRL_Layer on ivRL_Layer.RecordingID = ivR.Id -->
+#   <!--           INNER JOIN [dbo].[ivRLTaxonOccurrence] ivRL_Taxon on ivRL_Taxon.LayerID = ivRL_Layer.ID -->
+#   <!--           INNER JOIN [dbo].[ivRLIdentification] ivRL_Iden on ivRL_Iden.OccurrenceID = ivRL_Taxon.ID -->
+#   <!--           LEFT JOIN (SELECT ftTaxon.TaxonName AS TaxonFullText -->
+#                               <!--                           , COALESCE([GetSyn].TaxonName, ftTaxon.TaxonName) AS ScientificName -->
+#                               <!--                           , COALESCE([GetSyn].TaxonGIVID, ftTaxon.TaxonGIVID) AS TAXON_LIST_ITEM_KEY -->
+#                               <!--                           , COALESCE([GetSyn].TaxonQuickCode, ftTaxon.TaxonQuickCode) AS QuickCode -->
+#                               <!--                       FROM [syno].[Futon_dbo_ftTaxon] ftTaxon -->
+#                               <!--                       INNER JOIN [syno].[Futon_dbo_ftTaxonListItem] ftTLI ON ftTLI.TaxonGIVID = ftTaxon.TaxonGIVID  -->
+#                               <!--                       LEFT JOIN (SELECT ftTaxonLI.TaxonListItemGIVID -->
+#                                                                       <!--                                       , ftTaxon.TaxonGIVID -->
+#                                                                       <!--                                       , ftTaxon.TaxonName -->
+#                                                                       <!--                                       , ftTaxon.TaxonQuickCode -->
+#                                                                       <!--                                       , ftAGL.ListName -->
+#                                                                       <!--                                       , ftTaxonLI.PreferedListItemGIVID -->
+#                                                                       <!--                                 FROM [syno].[Futon_dbo_ftActionGroupList] ftAGL  -->
+#                                                                       <!--                                 INNER JOIN [syno].[Futon_dbo_ftTaxonListItem] ftTaxonLI ON ftTaxonLI.TaxonListGIVID = ftAGL.ListGIVID  -->
+#                                                                       <!--                                 LEFT JOIN [syno].[Futon_dbo_ftTaxon] ftTaxon ON ftTaxon.TaxonGIVID = ftTaxonLI.TaxonGIVID  -->
+#                                                                       <!--                                 WHERE 1=1 -->
+#                                                                       <!--                                 AND ftAGL.ListName = 'INBO-2011 Sci'	 -->
+#                                                                       <!--                               ) GetSyn ON GetSyn.TaxonListItemGIVID = ftTLI.PreferedListItemGIVID -->
+#                               <!--                          WHERE ftTLI.TaxonListGIVID = 'TL2011092815101010' -->
+#                               <!--                     ) Synoniem on ivRL_Iden.TaxonFullText = Synoniem.TaxonFullText collate Latin1_General_CI_AI -->
+#   <!--       -- Hier begint deel met bedekking -->
+#   <!--           LEFT JOIN [dbo].[ivRLResources] ivRL_Res on ivRL_Res.ResourceGIVID = ivRL_Taxon.CoverageResource -->
+#   <!--           LEFT JOIN [syno].[Futon_dbo_ftActionGroupList] ftAGL on ftAGL.ActionGroup = ivRL_Res.ActionGroup collate Latin1_General_CI_AI -->
+#   <!--           AND ftAGL.ListName = ivRL_Res.ListName collate Latin1_General_CI_AI -->
+#   <!--           LEFT JOIN [syno].[Futon_dbo_ftCoverValues] ftCover on ftCover.ListGIVID = ftAGL.ListGIVID -->
+#   <!--           AND ivRL_Taxon.CoverageCode = ftCover.Code collate Latin1_General_CI_AI -->
+#   <!--           --WHERE ivR.NeedsWork = 0 -->
+#   <!--           AND ivRL_Iden.Preferred = 1 -->
+#   <!--           -- AND ivR.RecordingGivid = 'IV2014070310423184' --(dees bevat Betula pubescens Ehrh., in inboveg is prefered Betula alba L. -->
+#                                                                        <!--           AND ivS.Name LIKE {SurveyName}", -->
+# <!--                 ivS.Name = Name, -->
+# <!--                 .con = con)) -->
+# <!-- } -->
+# 
+# <!-- ``` -->
+# 
+# <!-- # Example  -->
+# <!-- SurveyName <- "OudeLanden_1979" -->
+# <!-- OudeLanden <- relevé_info_surveyname(SurveyName, con) -->
+# <!-- OudeLanden2 <- relevé_info_surveyname("OudeLanden_1979", con) -->
+# 
+# 
+# <!-- # Connection -->
+# <!-- To close the connection: -->
+# 
+# <!-- ```{r} -->
+# <!-- dbDisconnect(con) -->
+# 
+# <!-- rm(con) -->
+# <!-- ``` -->
+# 
+
 
 
