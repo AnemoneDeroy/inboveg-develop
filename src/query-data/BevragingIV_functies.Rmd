@@ -205,6 +205,11 @@ Get all relevés of all surveys,  don't collect the data
 allrecordings <- inboveg_recordings(con)
 ```
 
+```{r}
+allrecordings
+```
+
+
 ## Header information
 
 This function `inboveg_header`queries the INBOVEG database for header information 
@@ -349,7 +354,7 @@ Still in progress
 Close the connection when done
 
 ```{r closing_conn}
-dbDisconnect(connection)
-rm(connection)
+dbDisconnect(con)
+rm(con)
 ```
 
